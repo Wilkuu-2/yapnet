@@ -3,7 +3,7 @@ package yn_server
 import (
 	"github.com/gorilla/websocket"
 	"time"
-	"wilkuu.xyz/yapnet_v1/protocol"
+	"wilkuu.xyz/yapnet/protocol"
 )
 
 type ClientConnection struct {
@@ -12,16 +12,20 @@ type ClientConnection struct {
 	send   chan *protocol.Message
 }
 
+type RawClientMessage struct {
+	client *ClientConnection
+	msg    protocol.RawMessage
+}
 type ClientMessage struct {
 	client *ClientConnection
 	msg    protocol.Message
 }
 
 const (
-	writeTimeout = 10 * time.Second
-	pongTimeout  = 60 * time.Second
+	writeTimeout = 120 * time.Second
+	pongTimeout  = 10 * time.Second
 	pingPeriod   = (pongTimeout * 9) / 10
-	maxMessageSz = 512
+	maxMessageSz = 1024
 )
 
 func (c *ClientConnection) writePump() {
@@ -29,7 +33,7 @@ func (c *ClientConnection) writePump() {
 	defer func() {
 		ping_ticker.Stop()
 		c.conn.Close()
-		c.server.disconnect <- c 
+		c.server.disconnect <- c
 	}()
 
 	for {
@@ -57,7 +61,7 @@ func (c *ClientConnection) writePump() {
 func (c *ClientConnection) readPump() {
 	defer func() {
 		c.conn.Close()
-		c.server.disconnect <- c 
+		c.server.disconnect <- c
 	}()
 	c.conn.SetReadLimit(maxMessageSz)
 	c.conn.SetReadDeadline(time.Now().Add(pongTimeout))
@@ -68,9 +72,9 @@ func (c *ClientConnection) readPump() {
 		})
 
 	for {
-		var msg protocol.Message
+		var msg protocol.RawMessage
 		err := c.conn.ReadJSON(&msg)
-		message := ClientMessage{
+		message := RawClientMessage{
 			client: c,
 			msg:    msg,
 		}

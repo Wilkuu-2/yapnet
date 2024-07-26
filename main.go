@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
-	"wilkuu.xyz/yapnet_v1/server"
+	"wilkuu.xyz/yapnet/server"
 )
 
 func routes(s *yn_server.Server) {

@@ -1,12 +1,13 @@
 package protocol
 
 import (
+	//"encoding/json"
+	// "errors"
+
 	"encoding/json"
-	"errors"
 
 	"github.com/google/uuid"
 )
-
 
 type SeqType uint64
 type MessageData interface {
@@ -21,10 +22,16 @@ type InvalidMessage map[string]interface{}
 
 func (InvalidMessage) MsgType() MsgType { return MsgTypeInvalid }
 
+type RawMessage struct {
+	Msg_type MsgType          `json:"msg_type"`
+	Seq      SeqType          `json:"seq"`
+	Data     *json.RawMessage `json:"data"`
+}
+
 type Message struct {
-	Msg_type MsgType     `json:"msg_type"`
-	Seq      SeqType     `json:"seq"`
-	Data     MessageData `json:"data"`
+	Msg_type MsgType      `json:"msg_type"`
+	Seq      SeqType      `json:"seq"`
+	Data     *MessageData `json:"data"`
 }
 
 type ChatSendMessage struct {
@@ -76,10 +83,10 @@ type ChatRecapMessage struct{}
 
 func (ChatRecapMessage) MsgType() MsgType { return MsgTypeChatRecap }
 
-func Msg(d MessageData) * Message {
+func Msg(d MessageData) *Message {
 	return &Message{
 		Msg_type: d.MsgType(),
-		Data:     d,
+		Data:     &d,
 	}
 }
 
@@ -88,59 +95,59 @@ func logBytes(data []byte) {
 	println(str)
 }
 
-func (m * Message) UnmarshalJSON(data []byte) error {
-	var objMap map[string]json.RawMessage
-	err := json.Unmarshal(data, &objMap)
-	if err != nil {
-		return err
-	}
-	msg_type, ok := objMap["msg_type"]
-	if !ok {
-		return errors.New("Unable to find 'msg_type' field in message")
-	}
-
-	err = json.Unmarshal(msg_type, &m.Msg_type)
-	if err != nil {
-		return err
-	}
-
-	msg_data, ok := objMap["data"]
-
-	if !ok {
-		return errors.New("Unable to find 'data' field in message")
-	}
-	switch m.Msg_type {
-	case MsgTypeHello:
-		var d HelloMessage
-		if err := json.Unmarshal(msg_data, &d); err != nil {
-			return err
-		}
-		m.Data = d
-	case MsgTypeChatSend:
-		var d ChatSendMessage
-		if err := json.Unmarshal(msg_data, &d); err != nil {
-			return err
-		}
-		m.Data = d
-	case MsgTypeEcho:
-		var d EchoMessage
-		if err := json.Unmarshal(msg_data, &d); err != nil {
-			return err
-		}
-		m.Data = d
-	case MsgTypeBack:
-		var d BackMessage
-		if err := json.Unmarshal(msg_data, &d); err != nil {
-			return err
-		}
-		m.Data = d
-	default:
-		var d InvalidMessage
-		if err := json.Unmarshal(msg_data, &d); err != nil {
-			return err
-		}
-		m.Data = d
-	}
-
-	return nil
-}
+// func (m * Message) UnmarshalJSON(data []byte) error {
+// 	var objMap map[string]json.RawMessage
+// 	err := json.Unmarshal(data, &objMap)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	msg_type, ok := objMap["msg_type"]
+// 	if !ok {
+// 		return errors.New("Unable to find 'msg_type' field in message")
+// 	}
+//
+// 	err = json.Unmarshal(msg_type, &m.Msg_type)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	msg_data, ok := objMap["data"]
+//
+// 	if !ok {
+// 		return errors.New("Unable to find 'data' field in message")
+// 	}
+// 	switch m.Msg_type {
+// 	case HelloMessage{}.MsgType():
+// 		var d HelloMessage
+// 		if err := json.Unmarshal(msg_data, &d); err != nil {
+// 			return err
+// 		}
+// 		m.Data = d
+// 	case ChatSendMessage{}.MsgType():
+// 		var d ChatSendMessage
+// 		if err := json.Unmarshal(msg_data, &d); err != nil {
+// 			return err
+// 		}
+// 		m.Data = d
+// 	case EchoMessage{}.MsgType():
+// 		var d EchoMessage
+// 		if err := json.Unmarshal(msg_data, &d); err != nil {
+// 			return err
+// 		}
+// 		m.Data = d
+// 	case BackMessage{}.MsgType():
+// 		var d BackMessage
+// 		if err := json.Unmarshal(msg_data, &d); err != nil {
+// 			return err
+// 		}
+// 		m.Data = d
+// 	default:
+// 		var d InvalidMessage
+// 		if err := json.Unmarshal(msg_data, &d); err != nil {
+// 			return err
+// 		}
+// 		m.Data = d
+// 	}
+//
+// 	return nil
+// }

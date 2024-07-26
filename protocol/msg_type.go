@@ -16,4 +16,5 @@ const (
 	MsgTypeChatRecap MsgType = "recp"
 	// Misc
 	MsgTypeEcho MsgType = "echo"
+	MsgTypeRaw  MsgType = "raw"
 )

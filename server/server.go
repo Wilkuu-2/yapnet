@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"wilkuu.xyz/yapnet_v1/protocol"
+	"wilkuu.xyz/yapnet/protocol"
 )
 
 var upgrader = websocket.Upgrader{
@@ -21,11 +21,11 @@ type ClientState struct {
 
 type Server struct {
 	Log          Logger
-	recieveQueue chan *ClientMessage
+	recieveQueue chan *RawClientMessage
 	clients      map[*ClientConnection]uuid.UUID
 	connect      chan *ClientConnection
 	disconnect   chan *ClientConnection
-	gameState    GameState 
+	gameState    GameState
 }
 type Logger struct {
 	Logf func(string, ...interface{})
@@ -55,7 +55,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewServer(logf func(string, ...interface{})) *Server {
 	return &Server{
 		Log:          Logger{Logf: logf},
-		recieveQueue: make(chan *ClientMessage),
+		recieveQueue: make(chan *RawClientMessage),
 		clients:      make(map[*ClientConnection]uuid.UUID),
 		connect:      make(chan *ClientConnection),
 		disconnect:   make(chan *ClientConnection),
@@ -69,13 +69,15 @@ func (s *Server) Run() {
 		select {
 		case client := <-s.connect:
 			s.Log.Logf("Adding a client: %v!", client.conn.RemoteAddr())
-			s.clients[client] = uuid.Nil  
+			s.clients[client] = uuid.Nil
 
 		case client := <-s.disconnect:
-			s.Log.Logf("Removing client!")
 			if _, ok := s.clients[client]; ok {
+				s.Log.Logf("Removing client!")
+				s.disconnectPlayer(client)
 				delete(s.clients, client)
 				close(client.send)
+				s.PrintPlayers()
 			}
 		case message := <-s.recieveQueue:
 			s.Log.Logf("Recieved a message from client: %v", message.client.conn.RemoteAddr())
@@ -91,4 +93,33 @@ func (s *Server) ClientBroadcast(m ClientMessage) {
 			client.send <- &m.msg
 		}
 	}
+}
+
+func CheckMark(checked bool) string {
+	if checked {
+		return "[x]"
+	}
+	return "[ ]"
+}
+
+func (s *Server) PrintPlayers() {
+	s.Log.Logf("-- Clients: %d | Players %d --", len(s.clients), len(s.gameState.Players))
+	for uuid, player := range s.gameState.Players {
+		s.Log.Logf("%v %v: %v",
+			CheckMark(player.Online),
+			player.Username,
+			uuid,
+		)
+	}
+}
+
+func (s *Server) disconnectPlayer(c *ClientConnection) {
+	player, ok := s.gameState.Players[s.clients[c]]
+
+	if !ok {
+		return
+	}
+
+	player.Online = false
+
 }

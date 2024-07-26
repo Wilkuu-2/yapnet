@@ -1,4 +1,4 @@
-module wilkuu.xyz/yapnet_v1
+module wilkuu.xyz/yapnet
 
 go 1.22.4
 
