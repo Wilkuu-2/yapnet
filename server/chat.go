@@ -8,6 +8,7 @@ import (
 	"wilkuu.xyz/yapnet/protocol"
 )
 
+// Chat handler, recieves ChatSend messages and sends appropriate responses
 func (s Server) handleChat(m *RawClientMessage) {
 	var chat_msg protocol.ChatSendMessage
 	err := json.Unmarshal([]byte(*m.msg.Data), &chat_msg)
@@ -15,10 +16,7 @@ func (s Server) handleChat(m *RawClientMessage) {
 		s.Log.Logf("Malformed message: %v", err)
 	}
 
-	// chat_msg := m.msg.Data.(protocol.ChatSendMessage)
-	s.Log.Logf("Handling chat message from %v!", m.client.conn.RemoteAddr())
-	s.Log.Logf("%+v!", chat_msg)
-
+	// Look if the player is logged in 
 	player_id, ok := s.clients[m.client]
 	if !ok || player_id == uuid.Nil {
 		m.client.send <- protocol.Msg(protocol.ErrorMessage{
@@ -28,13 +26,14 @@ func (s Server) handleChat(m *RawClientMessage) {
 		})
 		return
 	}
-
+	
+	// See if the found player has permissions 
 	a, err := s.gameState.CanChat(player_id, ChatID(chat_msg.Target))
-
+	// Chat error: Chat or player not found.  
 	if err != nil {
 		s.Log.Logf("Chat Error: %v", err)
 		m.client.send <- protocol.Msg(protocol.ErrorMessage{
-			Kind: "ChatChatErr",
+			Kind: "ChatError",
 			Info: err.Error(),
 			Details: map[string]interface{}{
 				"target": chat_msg.Target,
@@ -43,6 +42,7 @@ func (s Server) handleChat(m *RawClientMessage) {
 		return
 	}
 
+	// Chat error: Permission denied.  
 	if !a {
 		s.Log.Logf("Warning: ChatSend Permission denied: %v", chat_msg.Target)
 		m.client.send <- protocol.Msg(protocol.ErrorMessage{
@@ -54,25 +54,31 @@ func (s Server) handleChat(m *RawClientMessage) {
 		})
 		return
 	}
-
+		
+	// Chat can be sent
 	err = s.ChatSend(ChatID(chat_msg.Target), ClientMessage{m.client,
 		*protocol.Msg(protocol.ChatSentMessage{
 			Sender: s.gameState.Players[player_id].Username,
 			Chat:   chat_msg.Chat,
 			Origin: chat_msg.Target,
 		})})
-
+	
+	// For some reason the chat failed
+	// TODO: Maybe crash here, when we have the ability to save quickly
 	if err != nil {
 		s.Log.Logf("Warning: ChatSend failed: %v", err)
 	}
 }
 
+// Chat state. This holds the messages and controls of the chat lobby
 type Chat struct {
 	ChatMessages    []protocol.Message
 	ControlMessages []protocol.Message
 	CurrentAccess   []GroupOrPlayer
 }
 
+// Sends a message to everyone in the chat besides the client outlined in the client message. 
+// NOTE: This does not check for permission, check permissions first
 func (s Server) ChatSend(cid ChatID, m ClientMessage) error {
 	ch, ok1 := s.gameState.Chats[cid]
 	if !ok1 {

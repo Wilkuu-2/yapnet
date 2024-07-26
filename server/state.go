@@ -8,10 +8,11 @@ import (
 	"wilkuu.xyz/yapnet/protocol"
 )
 
-type ChatID string
-type GroupID string
+type ChatID string // Identifier for a chat
+type GroupID string // Identifier for a group
 
 const (
+	// Specified group id for anyone
 	GIDAny = "any"
 )
 
