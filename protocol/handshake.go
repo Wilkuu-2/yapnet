@@ -1,8 +1,6 @@
 package protocol
 
 import (
-	"encoding/json"
-
 	"github.com/google/uuid"
 )
 
@@ -42,15 +40,15 @@ func (WelcomeMessage) MsgType() MsgType { return MsgTypeWelcome }
 
 // Starts the recap procedure by defining how many messages there will be and how big the chunks are. 
 type RecapStart struct{
-	MessagesCount int32
-	ChunkSize int32 
+	MessagesCount int32 `json:"messages_count"`
+	ChunkSize int32 `json:"chunk_size"`
 }
 func (RecapStart) MsgType() MsgType { return MsgTypeRecapHead }
 
 // Holds the recap data. 
 type RecapTail struct {
-	Start int64 
-	Msgs []Message
+	Start int64 `json:"start"` 
+	Msgs []Message `json:"msgs"`
 }
 func (RecapTail) MsgType() MsgType { return MsgTypeRecapTail }
 
@@ -59,13 +57,8 @@ type PlayerJoined string
 func (PlayerJoined) MsgType() MsgType { return MsgTypePJoined  }
 
 // Player Leaving, sent internally in the server
-type SrvPlayerLeft string 
-func (SrvPlayerLeft) MsgType() MsgType { return MsgTypePLeft }
-
-// Player Leaving, sent from server 
-type PlayerLeft json.RawMessage // Already serialized, see SrvPlayerLeft for the signature 
+type PlayerLeft string 
 func (PlayerLeft) MsgType() MsgType { return MsgTypePLeft }
-
 
 
 
