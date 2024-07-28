@@ -14,8 +14,11 @@ const (
 	MsgTypeChatSend  MsgType = "chas"
 	MsgTypeChatSent  MsgType = "char"
 	// Syncing
-	MsgTypeRecapHead    MsgType = "rech"
-	MsgTypeRecapTail     MsgType = "recx"
+	MsgTypeRecapHead MsgType = "rech"
+	MsgTypeRecapTail MsgType = "recx"
+	MsgTypePJoined	 MsgType = "plrj"
+	MsgTypePLeft     MsgType = "plrl" 
+	MsgTypeSvPLeft     MsgType = "plsl" 
 	// Misc
 	MsgTypeEcho MsgType = "echo"
 	MsgTypeRaw  MsgType = "raw"

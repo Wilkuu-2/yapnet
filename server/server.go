@@ -80,20 +80,28 @@ func (s *Server) Run() {
 				s.PrintPlayers()
 			}
 		case message := <-s.recieveQueue:
-			s.Log.Logf("Recieved a message from client: %v", message.client.conn.RemoteAddr())
+			if message.client != nil {
+				s.Log.Logf("Recieved a message from client: %v", message.client.conn.RemoteAddr())
+			}
 			s.handleMessage(message)
 		}
 	}
 }
 
 // Broadcasts given ClientMessage to all other clients
-func (s *Server) ClientBroadcast(m ClientMessage) {
+func (s *Server) ClientBroadcast(c *ClientConnection, m protocol.MessageData) {
 	for client := range s.clients {
-		if client != m.client {
-			client.send <- &m.msg
+		if client != c {
+			client.send <- s.Msg(m)
 		}
 	}
 }
+
+func (s *Server) Broadcast(m protocol.MessageData) {
+	for client := range s.clients {
+		client.send <- s.Msg(m)
+	}
+} 
 
 func CheckMark(checked bool) string {
 	if checked {
@@ -119,7 +127,22 @@ func (s *Server) disconnectPlayer(c *ClientConnection) {
 	if !ok {
 		return
 	}
+	
+	s.Log.Logf("Sending player left packet")
+	// Marshalling a string should never error
+	leave := protocol.SrvPlayerLeft(player.Username)
+
+	s.Log.Logf("Handling player leaving")
+	// TODO: Maybe there needs to be a different Broadcast method 
+	s.Broadcast(leave)
 
 	player.Online = false
-
 }
+
+func (s *Server) Msg(d protocol.MessageData) *protocol.Message {
+	return &protocol.Message{
+		Msg_type: d.MsgType(),
+		Seq: 0,
+		Data: &d,
+	}
+} 

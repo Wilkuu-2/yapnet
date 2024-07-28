@@ -73,6 +73,7 @@ func (s Server) handleHello(m *RawClientMessage) {
 		Version: "1",
 	})
 
+	s.playerJoinEvent(m.client, hello.Name)
 	s.PrintPlayers()
 
 }
@@ -120,9 +121,15 @@ func (s Server) handleBack(m *RawClientMessage) {
 
 	player.Online = true
 
+	s.playerJoinEvent(m.client, player.Username)
 	s.PrintPlayers()
 
 }
+
+func (s Server) playerJoinEvent(client *ClientConnection, username string){
+	s.ClientBroadcast(client, protocol.PlayerJoined(username))
+}
+
 
 func (s Server) handleInvalid(m *RawClientMessage) {
 	s.Log.Logf("Handling an invalid message '%v' from %v!", m.msg.Msg_type, m.client.conn.RemoteAddr())
@@ -132,3 +139,4 @@ func (s Server) handleInvalid(m *RawClientMessage) {
 		Details: map[string]interface{}{"invalid_type": string(m.msg.Msg_type)},
 	})
 }
+

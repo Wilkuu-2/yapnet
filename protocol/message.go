@@ -32,8 +32,8 @@ type Message struct {
 // Wrap a MessageData struct in a Message for sending to the client. 
 func Msg(d MessageData) *Message {
 	return &Message{
-		Msg_type: d.MsgType(),
-		Data:     &d,
-	}
-}
+ 		Msg_type: d.MsgType(),
+ 		Data:     &d,
+ 	}
+ }
 

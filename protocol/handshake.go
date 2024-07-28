@@ -1,6 +1,10 @@
 package protocol
 
-import "github.com/google/uuid"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 const (
 	RECAP_CHUNK_SIZE int64 = 64
@@ -43,10 +47,25 @@ type RecapStart struct{
 }
 func (RecapStart) MsgType() MsgType { return MsgTypeRecapHead }
 
+// Holds the recap data. 
 type RecapTail struct {
-	start int64 
-	msgs []Message
+	Start int64 
+	Msgs []Message
 }
 func (RecapTail) MsgType() MsgType { return MsgTypeRecapTail }
+
+// Player Joining, sent from server 
+type PlayerJoined string 
+func (PlayerJoined) MsgType() MsgType { return MsgTypePJoined  }
+
+// Player Leaving, sent internally in the server
+type SrvPlayerLeft string 
+func (SrvPlayerLeft) MsgType() MsgType { return MsgTypePLeft }
+
+// Player Leaving, sent from server 
+type PlayerLeft json.RawMessage // Already serialized, see SrvPlayerLeft for the signature 
+func (PlayerLeft) MsgType() MsgType { return MsgTypePLeft }
+
+
 
 
