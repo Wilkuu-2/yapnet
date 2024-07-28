@@ -21,6 +21,7 @@ type ClientState struct {
 
 type Server struct {
 	Log          Logger
+	seq					 *SeqProvider
 	recieveQueue chan *RawClientMessage
 	clients      map[*ClientConnection]uuid.UUID
 	connect      chan *ClientConnection
@@ -55,6 +56,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewServer(logf func(string, ...interface{})) *Server {
 	return &Server{
 		Log:          Logger{Logf: logf},
+		seq:					NewSeqProvider(),
 		recieveQueue: make(chan *RawClientMessage),
 		clients:      make(map[*ClientConnection]uuid.UUID),
 		connect:      make(chan *ClientConnection),
@@ -90,16 +92,20 @@ func (s *Server) Run() {
 
 // Broadcasts given ClientMessage to all other clients
 func (s *Server) ClientBroadcast(c *ClientConnection, m protocol.MessageData) {
+	msg := s.Msg(m)
+	s.gameState.AddServerMessage(msg)
 	for client := range s.clients {
 		if client != c {
-			client.send <- s.Msg(m)
+			client.send <- &msg
 		}
 	}
 }
 
 func (s *Server) Broadcast(m protocol.MessageData) {
+	msg := s.Msg(m)
+	s.gameState.AddServerMessage(msg)
 	for client := range s.clients {
-		client.send <- s.Msg(m)
+		client.send <- &msg
 	}
 } 
 
@@ -128,21 +134,18 @@ func (s *Server) disconnectPlayer(c *ClientConnection) {
 		return
 	}
 	
-	s.Log.Logf("Sending player left packet")
 	// Marshalling a string should never error
-	leave := protocol.SrvPlayerLeft(player.Username)
-
-	s.Log.Logf("Handling player leaving")
-	// TODO: Maybe there needs to be a different Broadcast method 
+	leave := protocol.PlayerLeft(player.Username)
 	s.Broadcast(leave)
 
 	player.Online = false
 }
 
-func (s *Server) Msg(d protocol.MessageData) *protocol.Message {
-	return &protocol.Message{
+// Wraps the message and assigns proper Seq to it
+func (s *Server) Msg(d protocol.MessageData) protocol.Message {
+	return protocol.Message{
 		Msg_type: d.MsgType(),
-		Seq: 0,
+		Seq: s.seq.Take(),
 		Data: &d,
 	}
 } 

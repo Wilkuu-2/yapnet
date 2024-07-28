@@ -28,6 +28,7 @@ func (g GroupOrPlayer) IsPlayer() bool {
 type GameState struct {
 	Players map[uuid.UUID]*PlayerState
 	Chats   map[ChatID]Chat
+	ServerMessages []protocol.Message 
 }
 
 type PlayerState struct {
@@ -64,5 +65,14 @@ func newState() GameState {
 				},
 			},
 		},
+		ServerMessages: make([]protocol.Message, 0),
 	}
+}
+
+func (s * GameState) AddServerMessage(m protocol.Message) {
+
+	// NOTE: Idk why i need to assign it to a variable
+	// but if i inline this, the slice only contains the last message
+	msgs := append(s.ServerMessages, m)
+	s.ServerMessages = msgs
 }

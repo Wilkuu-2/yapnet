@@ -9,7 +9,7 @@ import (
 )
 
 // Chat handler, recieves ChatSend messages and sends appropriate responses
-func (s Server) handleChat(m *RawClientMessage) {
+func (s * Server) handleChat(m *RawClientMessage) {
 	var chat_msg protocol.ChatSendMessage
 	err := json.Unmarshal([]byte(*m.msg.Data), &chat_msg)
 	if err != nil {
@@ -57,7 +57,7 @@ func (s Server) handleChat(m *RawClientMessage) {
 		
 	// Chat can be sent
 	err = s.ChatSend(ChatID(chat_msg.Target), ClientMessage{m.client,
-		*protocol.Msg(protocol.ChatSentMessage{
+		s.Msg(protocol.ChatSentMessage{
 			Sender: s.gameState.Players[player_id].Username,
 			Chat:   chat_msg.Chat,
 			Origin: chat_msg.Target,
