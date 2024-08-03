@@ -13,16 +13,17 @@ var playerInfo = {
 
 message_handler = (event) => {
     let message = JSON.parse(event.data) 
+    let seq = message.seq
     let typ = message.msg_type
     switch (typ){
     case "err":
       console.log("Error: " + message.data["info"] )
       break
-    case "char": 
+    case "chat": 
       console.log(message.data)
-      let chatMessage = {name: message.data.sender, chat: message.data.chat_content}
+      let chatMessage = {name: message.data.chat_sender, chat: message.data.chat_content}
       messageLog.push(chatMessage)
-      let line = `${chatMessage.name}: ${chatMessage.chat}\n`
+      let line = `[${message.data.chat_target}] ${chatMessage.name}: ${chatMessage.chat}\n`
       chatbox.innerText += line
       break
     case "welc":
@@ -30,7 +31,7 @@ message_handler = (event) => {
       break
     default:
       console.log("Invalid message recieved: " + typ)
-      console.log(JSON.stringify(message))
+      console.log("Message: " + JSON.stringify(message))
     }
 }
 
@@ -59,9 +60,6 @@ chatform.onsubmit = (event) => {
     chatinput = chatform.querySelector('input[name="chat"]')
     chattext = chatinput.value
     chatinput.value = "" 
-    let chatMessage = {name: "You", chat: chattext} 
-
-    messageLog.push(chatMessage) 
     ws.send(JSON.stringify({
       msg_type: "chas",
       seq: 0, 
@@ -70,8 +68,6 @@ chatform.onsubmit = (event) => {
         chat_content: chattext, 
       },
     }))
-    let line = `${chatMessage.name}: ${chatMessage.chat}\n`
-    chatbox.innerText += line
   } else {
     console.log("Cannot chat if the connection is not established")
   }
@@ -126,9 +122,9 @@ function welcomeHandler(message) {
 
     playerInfo.logged_in = true
     playerInfo.uuid = message.token
-    playerInfo.username = message.name
+    playerInfo.username = message.username
 
-    username_field.value = message.name
+    username_field.value = message.username
     username_field.readOnly = true 
 
     token_field.value = message.token
@@ -152,3 +148,5 @@ function connect()
 }
 
 ws = connect()
+
+

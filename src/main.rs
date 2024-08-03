@@ -12,10 +12,11 @@ use tokio;
 
 mod protocol; 
 mod server; 
-
+mod state;
 
 pub use protocol::MessageData;
 pub use protocol::Message;
+
 
 /// Axum state (Arc)
 pub type AppState = std::sync::Arc<AppStateT>;
@@ -69,3 +70,17 @@ async fn handle_client(socket: WebSocket, state: AppState){
     a.send(socket).await.unwrap() 
 }
 
+#[macro_export]
+macro_rules! handler {
+    {$variant:pat = $var:expr => $code:block} => {
+        if let $variant = $var { $code } 
+        else {unreachable!("This should always match {}", stringify!($item))} 
+    };
+    {$var:expr;  $($variant:pat => $code:block),+} => {
+        match $var {
+           $($variant => $code)+
+           _ => unreachable!("Exhausted handler patterns: {}", !stringify!($($variant)+))
+        } 
+    };
+    
+}
