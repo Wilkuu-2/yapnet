@@ -197,8 +197,13 @@ impl<'a> Server<'_> {
         } 
 
         MessageResult::None  => (), 
-        MessageResult::Bulk(..) => unimplemented!("Bulk MessageResult not implemented")
-        }         
+        MessageResult::Bulk(messages) => {
+                let client = self.clients.get(&cid).unwrap();
+                for m in messages {
+                    client.to_client.send(m).await.unwrap(); 
+                    // TODO: Handle error
+            }
+        }      }   
         
     }
 }

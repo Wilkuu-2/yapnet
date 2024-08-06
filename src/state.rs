@@ -1,7 +1,4 @@
-
-
 use std::collections::HashMap;
-
 use uuid::Uuid;
 
 use crate::Message; 
@@ -40,22 +37,19 @@ impl MessageArr {
         d
     }
 
-    pub fn push_welcome_packet(&mut self, username: &String, user: &User) -> MessageResult {
+    pub fn push_welcome_packet(&mut self, username: &String, user: &User, recap: MessageResult) -> MessageResult {
         let welcome = serialize_msg_data(MessageData::Welcome { username: username.clone(), token: user.uuid });
         let player_joined = serialize_msg(self.state_message(MessageData::PlayerJoined { username: username.clone()}));
-        MessageResult::Many(
-            vec![MessageResult::Return(welcome),MessageResult::BroadcastExclusive(player_joined)])
+           MessageResult::Many(vec![MessageResult::Return(welcome),MessageResult::BroadcastExclusive(player_joined),recap])
     } 
+    
     
     pub fn print_state(&self) {
         println!("---- [State] ----");
         for m in self.inner.iter() {
             println!("[{}] {:?}", m.seq, m.data)
         } 
-    }
-
-
-    
+    }  
 }
 
 pub struct State<'a> {
@@ -171,22 +165,34 @@ impl<'a> State<'_> {
     } 
 
     pub fn reauth_user(&mut self, token: Uuid) -> Result<(String,MessageResult),MessageResult>{
-            if let Some((username, user)) = self.users.iter_mut().find(|u| u.1.uuid == token ) { 
+            let res1: Result<String, MessageResult> = 
+            {if let Some((username, user)) = self.users.iter_mut().find(|u| u.1.uuid == token ) { 
                 if !user.online {
                     user.online = true;  
                     
                     
-                    // TODO: Send Recap
-                    Ok((
-                        username.clone(), 
-                        self.messages.push_welcome_packet(username, user)
-                    )) 
-                } else {
+                //     Ok((
+                //         username.clone(), 
+                //         self.push_welcome_packet(username, user)
+                //     )) 
+                    Ok(username.clone())
+                 } else {
                     Err(error_result("AlreadyLoggedIn", "The token holder is already logged in".to_string(), None))
                 } 
             } else {
                 Err(error_result("InvalidToken", "The token you gave is not valid".to_string(), None))
             }   
+            };
+
+            match res1 { 
+                Err(err) => Err(err),
+                Ok(username) => {
+                    let user = self.users.get(&username).unwrap(); // We already found the user before 
+                    let recap = self.recap(&username, user);
+                    let welcome_packet = self.messages.push_welcome_packet(&username, user, recap);
+                    Ok((username, welcome_packet))
+                } 
+            }
     } 
     pub fn new_user(&mut self, username: &String) -> Result<MessageResult,MessageResult> {
         if let Some(_) = self.users.get(username) {
@@ -201,12 +207,13 @@ impl<'a> State<'_> {
             messages: vec![],
         };
 
-        let welc = self.messages.push_welcome_packet(username, &user);
         self.users.insert(username.clone(), user);
+        let userref = self.users.get(username).expect("We just added this user.");
+        let recap = self.recap(username,userref);
+        let welc = self.messages.push_welcome_packet(username, &userref,recap);
 
         Ok(welc)   
     } 
-    
     pub fn player_leave(&mut self, userc: &String) -> MessageResult
     { 
         if let Some(user) = self.users.get_mut(userc) {
@@ -221,6 +228,58 @@ impl<'a> State<'_> {
         self.messages.print_state()
     }
 
+    const RECAP_CHUNK_SZ: usize = 64; 
+
+    fn recap(&self, username: &String, user: &User) -> MessageResult {
+       let mut out = Vec::new();
+       let mut mbuf = Vec::new(); 
+       let mut start_cursor = 0; 
+       let mut chunks = 0; 
+       
+       for m in self.messages.inner.iter() {
+            let add = {
+                m.data.is_global() |
+                match m.data.get_subject_player() {
+                    Some(uname) => uname == *username,
+                    None => false,
+                } | 
+                match m.data.get_chat_name(){  
+                    None => false,
+                    Some(chatn) => { if let Some(_ch) = self.chats.get(&chatn) {
+                        println!("recap chat message {:?}",chatn);
+                        true 
+                        // ch.check_player(user)
+                    } else {
+                        false 
+                    }}, 
+                }
+            };
+
+            if add {
+                if mbuf.len() < Self::RECAP_CHUNK_SZ{
+                    mbuf.push(m);
+                } else {
+                    chunks += 1; 
+
+                    out.push(Message {seq: chunks as u64, data: MessageData::RecapTail { start: start_cursor, msgs: mbuf.iter().map(|m| serde_json::to_value(m).unwrap()).collect() }});
+
+                    start_cursor += mbuf.len(); 
+                    mbuf = Vec::new(); 
+                }
+            } 
+       }
+       // Append at the end 
+       if mbuf.len() > 0{
+            chunks += 1; 
+            out.push(Message {seq: chunks as u64, data: MessageData::RecapTail { start: start_cursor, msgs: mbuf.iter().map(|m| serde_json::to_value(m).unwrap()).collect() }});
+       }
+
+       let head = MessageResult::Return(serialize_msg_data(MessageData::RecapHead { count: chunks, chunk_sz: Self::RECAP_CHUNK_SZ })); 
+       
+
+       MessageResult::Many(vec![head,MessageResult::Bulk(out.iter().map(|m| serde_json::to_string(m).unwrap()).collect())])
+    
+    }
 } 
 
 

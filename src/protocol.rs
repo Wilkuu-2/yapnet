@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 /// Metadata wrapping the message body
@@ -51,7 +52,7 @@ pub enum MessageData {
     RecapHead{count: usize, chunk_sz: usize},
     /// Server: This is what happened before you joined
     #[serde(rename="recx")]  
-    RecapTail{start: usize, msgs: Vec<Message>},  
+    RecapTail{start: usize, msgs: Vec<Value>},  
 
     // Misc
     /// Server/Client: Echo 
@@ -59,4 +60,30 @@ pub enum MessageData {
     Echo(serde_json::Value), 
 } 
 
+
+impl MessageData {
+    pub fn get_subject_player(&self) -> Option<String> { 
+        match self {
+           Self::PlayerLeft { username } => Some(username.clone()), 
+           Self::PlayerJoined { username } => Some(username.clone()), 
+           Self::ChatSent { chat_sender, .. } => Some(chat_sender.clone()),
+           _ => None  
+        }        
+    } 
+    pub fn get_chat_name(&self) -> Option<String> { 
+        match self {
+           Self::ChatSent {chat_target, ..} => Some(chat_target.clone()), 
+           Self::ChatSend {chat_target, .. } => Some(chat_target.clone()), 
+           _ => None 
+        }
+    }  
+
+    pub fn is_global(&self) -> bool {
+        match self {
+            Self::PlayerLeft { .. } |
+            Self::PlayerJoined { .. } => true, 
+            _ => false
+        } 
+    } 
+} 
 
