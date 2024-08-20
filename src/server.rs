@@ -171,7 +171,11 @@ impl<'a> Server<'_> {
         match m {
             MessageResult::Error(m) | MessageResult::Return(m) => {
                 if let Some(client) = self.clients.get(&cid) {
-                    client.to_client.send(m).await.unwrap() // TODO: Handle error
+                    match client.to_client.send(m).await {
+                        Ok(()) => () ,
+                        Err(err) => eprintln!("[Send error] {:?}", err),
+
+                    } 
                 }
             }
             MessageResult::BroadcastExclusive(m) => {
@@ -179,13 +183,21 @@ impl<'a> Server<'_> {
                     if cid == *cid2 {
                         continue;
                     }
-                    client.to_client.send(m.clone()).await.unwrap()
+                    match client.to_client.send(m.clone()).await {
+                        Ok(()) => () ,
+                        Err(err) => eprintln!("[Send error] {:?}", err),
+
+                    } 
                     // TODO: Handle error and see what we can do about the clone
                 }
             }
             MessageResult::Broadcast(m) => {
                 for (_, client) in &self.clients {
-                    client.to_client.send(m.clone()).await.unwrap()
+                    match client.to_client.send(m.clone()).await {
+                        Ok(()) => () ,
+                        Err(err) => eprintln!("[Send error] {:?}", err),
+
+                    } 
                     // TODO: Handle error and see what we can do about the clone
                 }
             }
@@ -201,7 +213,11 @@ impl<'a> Server<'_> {
             MessageResult::Bulk(messages) => {
                 let client = self.clients.get(&cid).unwrap();
                 for m in messages {
-                    client.to_client.send(m).await.unwrap();
+                    match client.to_client.send(m).await {
+                        Ok(()) => () ,
+                        Err(err) => eprintln!("[Send error] {:?}", err),
+
+                    } 
                     // TODO: Handle error
                 }
             }

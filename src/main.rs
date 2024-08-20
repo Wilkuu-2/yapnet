@@ -41,7 +41,7 @@ async fn main() {
 
     let app: Router<()> = Router::new()
         .route("/ws", get(handle_ws))
-        .nest_service("/", ServeDir::new("client")) // Try finding files if it is not ws
+        .nest_service("/", ServeDir::new("static")) // Try finding files if it is not ws
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));

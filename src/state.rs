@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
+use crate::protocol::ChatSetup;
+use crate::protocol::Perm;
 use crate::Message;
 use crate::MessageData;
 type MessageView<'a> = Vec<&'a Message>;
@@ -37,6 +39,13 @@ impl MessageArr {
         d
     }
 
+    pub fn push(&mut self, m:MessageData){
+        let s = self.seq;
+        self.seq += 1;
+        let message = Message { seq: s, data: m };
+        self.inner.push(message);
+    }
+
     pub fn push_welcome_packet(
         &mut self,
         username: &String,
@@ -67,7 +76,7 @@ impl MessageArr {
 
 pub struct State<'a> {
     messages: MessageArr,
-    chats: HashMap<String, Chat<'a>>,
+    chats: HashMap<String, Chat>,
     users: HashMap<String, User<'a>>,
     /// Deprecated
     seq: u64,
@@ -91,16 +100,16 @@ pub enum MessageResult {
     None,
 }
 
-struct Chat<'a> {
-    messages: MessageView<'a>,
+struct Chat {
+    pub(crate) perms: Vec<Perm>
 }
 
-impl<'a> Chat<'_> {
-    fn new() -> Self {
-        Self { messages: vec![] }
+impl Chat {
+    fn can_write(&self, _: &User) -> bool {
+        // Todo: Check permissions
+        return true;
     }
-
-    fn check_player(&self, _: &User) -> bool {
+    fn can_read(&self, _: &User) -> bool {
         // Todo: Check permissions
         return true;
     }
@@ -123,10 +132,24 @@ impl<'a> State<'_> {
 
         state
             .chats
-            .insert("general".to_string(), Chat { messages: vec![] });
+            .insert("general".to_string(), Chat { perms: vec![Perm::Any{rw: 3}] });
+        state
+            .chats
+            .insert("not-general".to_string(), Chat { perms: vec![Perm::Any{rw: 3}] });
 
+        state.push_setup_message();
         state
     }
+
+    pub fn push_setup_message(&mut self) {
+        let mut chats = vec![];
+        for (name,v) in self.chats.iter() {
+            chats.push(ChatSetup{name: name.clone(), perm: v.perms.clone() })
+        }
+        
+        self.messages.push(MessageData::Setup { chats })
+    }
+
 
     pub fn handle_message(&mut self, username: &String, m: Message) -> MessageResult {
         return match m.data {
@@ -141,12 +164,13 @@ impl<'a> State<'_> {
             | MessageData::PlayerLeft { .. }
             | MessageData::PlayerJoined { .. }
             | MessageData::RecapHead { .. }
-            | MessageData::RecapTail { .. } => {
+            | MessageData::RecapTail { .. } 
+            | MessageData::Setup { .. } => {
                 println!("Server side packet sent by client!");
                 MessageResult::None
             }
-
-            _ => todo!("Unsupported Message Type"),
+            MessageData::Echo( _ ) => todo!("echo"), 
+            MessageData::Error{ .. } => todo!("error"), 
         };
     }
 
@@ -158,7 +182,7 @@ impl<'a> State<'_> {
         {
             let player = self.users.get(sender).expect("");
             if let Some(chat) = self.chats.get(&chat_target) {
-                if chat.check_player(player) {
+                if chat.can_write(player) {
                     MessageResult::Broadcast(
                         serde_json::to_string(self.messages.state_message(MessageData::ChatSent {
                             chat_sender: sender.clone(),
@@ -264,7 +288,7 @@ impl<'a> State<'_> {
 
     const RECAP_CHUNK_SZ: usize = 64;
 
-    fn recap(&self, username: &String, user: &User) -> MessageResult {
+    fn recap(&self, username: &String, _: &User) -> MessageResult {
         let mut out = Vec::new();
         let mut mbuf = Vec::new();
         let mut start_cursor = 0;
