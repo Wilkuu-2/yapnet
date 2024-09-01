@@ -1,6 +1,8 @@
+use crate::lua::{init_lua, state_init};
 use crate::state::{error_result, MessageResult, State};
 use crate::{Message, MessageData};
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
+use mlua::Lua;
 use std::collections::HashMap;
 use tokio::{
     select,
@@ -64,7 +66,9 @@ pub struct Server<'a> {
 
 impl<'a> Server<'_> {
     /// Make the server and the handle
-    pub fn create() -> (Self, ServerHandle) {
+    pub async fn create() -> (Self, ServerHandle) {
+        let state = state_init(init_lua().await);
+
         let (message_send, message_recv) = channel(128);
         let (add_clients_send, add_clients_recv) = channel(8);
         let (remove_clients_send, remove_clients_recv) = channel(8);
@@ -81,7 +85,7 @@ impl<'a> Server<'_> {
             remove_clients: remove_clients_recv,
             clients: HashMap::new(),
             users_connections: HashMap::new(),
-            state: State::new(),
+            state,
             handle: sh.clone(),
             highest_id: 0,
         };

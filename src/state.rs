@@ -1,6 +1,11 @@
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 use uuid::Uuid;
+use mlua::prelude::*;
 
+use crate::lua::server_api::LuaState;
+use crate::lua::server_api::StateFrame;
 use crate::protocol::ChatSetup;
 use crate::protocol::Perm;
 use crate::Message;
@@ -76,8 +81,9 @@ impl MessageArr {
 
 pub struct State<'a> {
     messages: MessageArr,
-    chats: HashMap<String, Chat>,
-    users: HashMap<String, User<'a>>,
+    pub chats: HashMap<String, Chat>,
+    pub users: HashMap<String, User<'a>>,
+    pub(crate) lua_state: Option<LuaState>, 
     /// Deprecated
     seq: u64,
 }
@@ -100,7 +106,7 @@ pub enum MessageResult {
     None,
 }
 
-struct Chat {
+pub(crate) struct Chat {
     pub(crate) perms: Vec<Perm>
 }
 
@@ -123,22 +129,13 @@ pub struct User<'a> {
 
 impl<'a> State<'_> {
     pub fn new() -> Self {
-        let mut state = Self {
+        Self {
             messages: MessageArr::new(),
             chats: HashMap::new(),
             users: HashMap::new(),
+            lua_state: None,
             seq: 0,
-        };
-
-        state
-            .chats
-            .insert("general".to_string(), Chat { perms: vec![Perm::Any{rw: 3}] });
-        state
-            .chats
-            .insert("not-general".to_string(), Chat { perms: vec![Perm::Any{rw: 3}] });
-
-        state.push_setup_message();
-        state
+        }
     }
 
     pub fn push_setup_message(&mut self) {
@@ -174,6 +171,20 @@ impl<'a> State<'_> {
         };
     }
 
+    fn lua_call<'lua, A>(&'lua self, callback_name: &'static str, args: A) -> LuaResult<Arc<Mutex<StateFrame>>> where 
+    A: IntoLuaMulti<'lua>
+    { 
+        match &self.lua_state { 
+            Some(lua_state) => {
+                let frame = Arc::new(Mutex::new(StateFrame::make(self)));
+                lua_state.callback(callback_name, frame.clone(), args.into_lua_multi(&lua_state.lua)?);
+                Ok(frame)
+            },
+            None => Err(mlua::Error::SerializeError("There is no lua!".to_string()))
+        }
+
+    }
+
     fn handle_chat(&mut self, sender: &String, m: Message) -> MessageResult {
         if let MessageData::ChatSend {
             chat_target,
@@ -183,8 +194,20 @@ impl<'a> State<'_> {
             let player = self.users.get(sender).expect("");
             if let Some(chat) = self.chats.get(&chat_target) {
                 if chat.can_write(player) {
+
+                    match self.lua_call("on_chat", 
+                        (chat_target.clone(),sender.clone(), chat_content.clone()))
+                    {
+                        Ok(frame) => { 
+                            let fr = frame.lock().unwrap();
+                            println!("{:?}", fr.outbound)
+                        },
+                        Err(e) => eprintln!("on_chat failed: {}", e)
+                    }
+                    
                     MessageResult::Broadcast(
-                        serde_json::to_string(self.messages.state_message(MessageData::ChatSent {
+                        serde_json::to_string(self.messages.state_message(MessageData::
+                        ChatSent {
                             chat_sender: sender.clone(),
                             chat_target,
                             chat_content,

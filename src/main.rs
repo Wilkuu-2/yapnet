@@ -16,6 +16,7 @@ use tower_http::services::ServeDir;
 mod protocol;
 mod server;
 mod state;
+mod lua;
 
 pub use protocol::Message;
 pub use protocol::MessageData;
@@ -33,7 +34,7 @@ async fn main() {
     // TODO: Import tracing crate and figure out good logging strategy
     //tracing_subscriber::fmt::init();
 
-    let (server, handle) = server::Server::create();
+    let (server, handle) = server::Server::create().await;
 
     let state = std::sync::Arc::new(AppStateT {
         server_handle: handle,
