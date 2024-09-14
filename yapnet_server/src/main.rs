@@ -13,13 +13,11 @@ use std::net::SocketAddr;
 use tokio;
 use tower_http::services::ServeDir;
 
-mod protocol;
 mod server;
 mod state;
 mod lua;
 
-pub use protocol::Message;
-pub use protocol::MessageData;
+pub use yapnet_core::protocol::message::*;
 
 /// Axum state (Arc)
 pub type AppState = std::sync::Arc<AppStateT>;

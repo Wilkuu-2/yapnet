@@ -1,8 +1,8 @@
-use crate::lua::{init_lua, state_init};
+use crate::lua::state_init;
 use crate::state::{error_result, MessageResult, State};
-use crate::{Message, MessageData};
+use yapnet_core::lua::yapi::init_lua_from_argv;
+use yapnet_core::protocol::message::*;
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
-use mlua::Lua;
 use std::collections::HashMap;
 use tokio::{
     select,
@@ -51,11 +51,11 @@ pub struct ServerHandle {
 }
 
 /// Websocket server task
-pub struct Server<'a> {
+pub struct Server {
+    state: State,
     pub messages: Receiver<super::Message>,
     pub add_clients: Receiver<WebSocket>,
     pub remove_clients: Receiver<CloseConnection>,
-    state: State<'a>,
     handle: ServerHandle,
     clients: HashMap<usize, ClientConnection>,
     users_connections: HashMap<usize, String>,
@@ -64,10 +64,10 @@ pub struct Server<'a> {
     highest_id: usize,
 }
 
-impl<'a> Server<'_> {
+impl Server {
     /// Make the server and the handle
     pub async fn create() -> (Self, ServerHandle) {
-        let state = state_init(init_lua().await);
+        let state = state_init(init_lua_from_argv());
 
         let (message_send, message_recv) = channel(128);
         let (add_clients_send, add_clients_recv) = channel(8);

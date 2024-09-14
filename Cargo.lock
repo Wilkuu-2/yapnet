@@ -1373,6 +1373,7 @@ dependencies = [
  "tokio",
  "tower-http",
  "uuid",
+ "yapnet_core",
 ]
 
 [[package]]
@@ -1382,6 +1383,12 @@ version = "0.1.0"
 [[package]]
 name = "yapnet_core"
 version = "0.1.0"
+dependencies = [
+ "mlua",
+ "serde",
+ "serde_json",
+ "uuid",
+]
 
 [[package]]
 name = "zerocopy"

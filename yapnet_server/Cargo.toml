@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+yapnet_core = { path="../yapnet_core"} 
 axum = { version = "0.7.5", features= ["ws"]}
 futures-util = "0.3.30"
 mlua = { version = "0.9.9", features = ["lua54", "vendored", "macros", "async", "serialize"] }
