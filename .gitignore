@@ -28,3 +28,4 @@ go.work.sum
 # Added by cargo
 
 /target
+*/target
