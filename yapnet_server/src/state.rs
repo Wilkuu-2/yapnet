@@ -4,12 +4,9 @@ use std::sync::Mutex;
 use uuid::Uuid;
 use mlua::prelude::*;
 
-use crate::lua::server_api::LuaState;
-use crate::lua::server_api::StateFrame;
-use crate::protocol::ChatSetup;
-use crate::protocol::Perm;
-use crate::Message;
-use crate::MessageData;
+use crate::lua::{LuaState,StateFrame};
+
+use yapnet_core::prelude::*; 
 type MessageView<'a> = Vec<&'a Message>;
 
 struct MessageArr {
@@ -79,10 +76,10 @@ impl MessageArr {
     }
 }
 
-pub struct State<'a> {
+pub struct State {
     messages: MessageArr,
     pub chats: HashMap<String, Chat>,
-    pub users: HashMap<String, User<'a>>,
+    pub users: HashMap<String, User>,
     pub(crate) lua_state: Option<LuaState>, 
     /// Deprecated
     seq: u64,
@@ -106,28 +103,7 @@ pub enum MessageResult {
     None,
 }
 
-pub(crate) struct Chat {
-    pub(crate) perms: Vec<Perm>
-}
-
-impl Chat {
-    fn can_write(&self, _: &User) -> bool {
-        // Todo: Check permissions
-        return true;
-    }
-    fn can_read(&self, _: &User) -> bool {
-        // Todo: Check permissions
-        return true;
-    }
-}
-
-pub struct User<'a> {
-    pub online: bool,
-    pub uuid: Uuid,
-    messages: MessageView<'a>,
-}
-
-impl<'a> State<'_> {
+impl State {
     pub fn new() -> Self {
         Self {
             messages: MessageArr::new(),
@@ -284,7 +260,6 @@ impl<'a> State<'_> {
         let user = User {
             uuid: token,
             online: true,
-            messages: vec![],
         };
 
         self.users.insert(username.clone(), user);

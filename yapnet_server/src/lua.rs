@@ -1,12 +1,51 @@
+use std::vec;
+
+use mlua::prelude::*;
+use yapnet_core::{protocol::Perm, game::Chat};
+use crate::{state::State, Message};
 use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
-use mlua::prelude::*;
-use mlua::LuaSerdeExt;
+// use mlua::LuaSerdeExt;
 
-use crate::{state::State, Message};
+use yapnet_core::lua::yapi::LuaPlayer; 
 
-use super::lua_api::LuaPlayer; 
+pub async fn init_lua() {
+    
+}
+
+pub fn state_init(lua: Lua) -> State{
+    let mut state = State::new();
+    {
+        let globals = lua.globals();
+
+        let game: LuaTable = globals.get("__game").expect("Cannot find the configuration chunk ( return { .. } )");
+        let chats: LuaTable = game.get("chats").expect("Cannot find chats!"); 
+        for pair in chats.pairs::<String, LuaTable>() {
+            match pair {
+                Ok((name,table)) => {
+                    let allowed_group: String = yapnet_core::lua::parse_table_field(table, "allowed", "none".to_string());
+
+                    let perm = match allowed_group.as_str() {
+                        "any" | "all" => Perm::Any { rw: 3 },
+                        "none" => Perm::User { rw: 3, name: String::from("__Noone") },
+                        g => Perm::Group { rw: 3, name: g.to_string() },
+                    };
+                    
+                    let v = Chat {perms: vec![perm]}; 
+                    state.chats.insert(name.clone(), v); 
+                }, 
+                Err(e) => eprintln!("Cannot parse chat: {}", e), 
+            }
+        } 
+    }
+
+    state.lua_state = Some(LuaState { lua });
+    state.push_setup_message();
+
+    state
+    
+}  
 
 pub struct LuaState {
     pub lua: Lua,
@@ -35,7 +74,7 @@ impl StateFrame where
 
 impl LuaUserData for StateFrame where 
 {
-    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(fields: &mut F) {
+    fn add_fields<'lua, F: LuaUserDataFields<'lua, Self>>(_fields: &mut F) {
     }
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
         // Gets info on a player
