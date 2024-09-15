@@ -1,5 +1,4 @@
 use crate::protocol::message::*; 
-use crate::game::{User,MessageResult};
 
 pub struct History {
     inner: Vec<Message>,
@@ -49,25 +48,6 @@ impl History {
     }
 
     // TODO: Move to server code 
-    pub fn push_welcome_packet(
-        &mut self,
-        username: &String,
-        user: &User,
-        recap: MessageResult,
-    ) -> MessageResult {
-        let welcome = MessageData::Welcome {
-            username: username.clone(),
-            token: user.uuid,
-        }.into();
-        let player_joined = self.push_and_serialize(MessageData::PlayerJoined {
-            username: username.clone(),
-        });
-        MessageResult::Many(vec![
-            MessageResult::Return(welcome),
-            MessageResult::BroadcastExclusive(player_joined),
-            recap,
-        ])
-    }
 
     pub fn print_state(&self) {
         println!("---- [State] ----");

@@ -169,9 +169,8 @@ impl State {
         match res1 {
             Err(err) => Err(err),
             Ok(username) => {
-                let user = self.users.get(&username).unwrap(); // We already found the user before
-                let recap = self.recap(&username, user);
-                let welcome_packet = self.history.push_welcome_packet(&username, user, recap);
+                let uuid = self.users.get(&username).unwrap().uuid; // We already found the user before
+                let welcome_packet = self.successful_login(&username, uuid);
                 Ok((username, welcome_packet))
             }
         }
@@ -193,9 +192,7 @@ impl State {
         };
 
         self.users.insert(username.clone(), user);
-        let userref = self.users.get(username).expect("We just added this user.");
-        let recap = self.recap(username, userref);
-        let welc = self.history.push_welcome_packet(username, &userref, recap);
+        let welc = self.successful_login(username, token);
 
         Ok(welc)
     }
@@ -216,7 +213,7 @@ impl State {
 
     const RECAP_CHUNK_SZ: usize = 64;
 
-    fn recap(&self, username: &String, _: &User) -> MessageResult {
+    fn recap(&self, username: &String) -> MessageResult {
         let mut out = Vec::new();
         let mut mbuf = Vec::new();
         let mut start_cursor = 0;
@@ -292,6 +289,26 @@ impl State {
                     .map(|m| serde_json::to_string(m).unwrap())
                     .collect(),
             ),
+        ])
+    }
+    
+    fn successful_login(
+        &mut self,
+        username: &String,
+        uuid: Uuid,
+    ) -> MessageResult {
+        let recap = self.recap(username);
+        let welcome = MessageData::Welcome {
+            username: username.clone(),
+            token: uuid,
+        }.into();
+        let player_joined = self.history.push_and_serialize(MessageData::PlayerJoined {
+            username: username.clone(),
+        });
+        MessageResult::Many(vec![
+            MessageResult::Return(welcome),
+            MessageResult::BroadcastExclusive(player_joined),
+            recap,
         ])
     }
 }
