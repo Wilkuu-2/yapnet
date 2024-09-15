@@ -12,9 +12,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use uuid::Uuid; 
-use crate::protocol::Perm;
 pub mod history;
+pub mod chat; 
+pub mod user; 
 
 #[derive(Debug)]
 pub enum MessageResult {
@@ -34,22 +34,3 @@ pub enum MessageResult {
     None,
 }
 
-pub struct User {
-    pub online: bool,
-    pub uuid: Uuid,
-}
-
-pub struct Chat {
-    pub perms: Vec<Perm>
-}
-
-impl Chat {
-    pub fn can_write(&self, _: &User) -> bool {
-        // Todo: Check permissions
-        return true;
-    }
-    pub fn can_read(&self, _: &User) -> bool {
-        // Todo: Check permissions
-        return true;
-    }
-}

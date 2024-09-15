@@ -15,7 +15,8 @@
 use std::vec;
 
 use mlua::prelude::*;
-use yapnet_core::{protocol::Perm, game::Chat};
+use yapnet_core::protocol::Perms;
+use yapnet_core::{protocol::Perm, game::chat::Chat};
 use crate::{state::State, Message};
 use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
@@ -46,7 +47,7 @@ pub fn state_init(lua: Lua) -> State{
                         g => Perm::Group { rw: 3, name: g.to_string() },
                     };
                     
-                    let v = Chat {perms: vec![perm]}; 
+                    let v = Chat {perms: Perms::wrap_vec(vec![perm])}; 
                     state.chats.insert(name.clone(), v); 
                 }, 
                 Err(e) => eprintln!("Cannot parse chat: {}", e), 

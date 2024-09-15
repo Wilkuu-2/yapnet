@@ -18,7 +18,7 @@ use serde::{Serialize, Deserialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChatSetup {
     pub name: String,
-    pub perm: Vec<Perm> 
+    pub perm: Perms 
 } 
 
 /// Permissions for chats
@@ -49,3 +49,65 @@ pub enum Perm {
         rw: u8,  
     },
 }  
+
+impl Perm {
+    pub fn check_player(&self, username: &String) -> Option<u8> {
+        match self {  
+            Self::Any{rw} => Some(rw.clone()),  
+            Self::User {name, rw } => {
+               if *name == *username {Some(rw.clone())} 
+                else {None} 
+            }, 
+            _ => None 
+        } 
+        
+    }
+    pub fn check_group(&self, groupname: &String) -> Option<u8> {
+        match self {  
+            Self::Any{rw} => Some(rw.clone()),  
+            Self::Group {name, rw } => {
+               if *name == *groupname {Some(rw.clone())} 
+                else {None} 
+            }, 
+            _ => None 
+        } 
+    }
+} 
+
+
+#[derive(Clone,Debug, Serialize, Deserialize)]
+pub struct Perms (Vec<Perm>);
+
+impl Perms {
+    pub fn new() -> Self {
+        Self(Vec::with_capacity(4))
+    }
+
+    pub fn wrap_vec(v: Vec<Perm>) -> Self {
+        Self(v)
+    }
+
+    pub fn check_player(&self, username: &String) -> u8 {
+        let mut rw: u8 = 0; 
+        for item in self.0.iter() {
+            if let Some(p) = item.check_player(username) {
+                rw |= p; 
+            }
+        }
+        rw
+    } 
+    pub fn check_group(&self, groupname: &String) -> u8 {
+        let mut rw: u8 = 0; 
+        for item in self.0.iter() {
+            if let Some(p) = item.check_group(groupname) {
+                rw |= p; 
+            }
+        }
+        rw
+    } 
+
+}
+
+
+
+

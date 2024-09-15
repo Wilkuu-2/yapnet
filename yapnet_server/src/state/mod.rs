@@ -12,7 +12,6 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -25,11 +24,9 @@ use yapnet_core::prelude::*;
 
 pub struct State {
     history: History,
-    pub chats: HashMap<String, Chat>,
-    pub users: HashMap<String, User>,
     pub(crate) lua_state: Option<LuaState>, 
-    /// Deprecated
-    seq: u64,
+    pub chats: Chats,
+    pub users: Users,
 }
 
 
@@ -37,10 +34,9 @@ impl State {
     pub fn new() -> Self {
         Self {
             history: History::new(),
-            chats: HashMap::new(),
-            users: HashMap::new(),
+            chats: Chats::new(),
+            users: Users::new(),
             lua_state: None,
-            seq: 0,
         }
     }
 
@@ -144,11 +140,6 @@ impl State {
             if let Some((username, user)) = self.users.iter_mut().find(|u| u.1.uuid == token) {
                 if !user.online {
                     user.online = true;
-
-                    //     Ok((
-                    //         username.clone(),
-                    //         self.push_welcome_packet(username, user)
-                    //     ))
                     Ok(username.clone())
                 } else {
                     Err(error_result(
@@ -169,7 +160,7 @@ impl State {
         match res1 {
             Err(err) => Err(err),
             Ok(username) => {
-                let uuid = self.users.get(&username).unwrap().uuid; // We already found the user before
+                let uuid = self.users.get(&username).expect("The user was already located before").uuid; // TODO: We already found the user before in the code above, why can't we use that result instead?
                 let welcome_packet = self.successful_login(&username, uuid);
                 Ok((username, welcome_packet))
             }
@@ -185,16 +176,9 @@ impl State {
         }
 
         let token = Uuid::new_v4();
-
-        let user = User {
-            uuid: token,
-            online: true,
-        };
-
+        let user = User::new(token);
         self.users.insert(username.clone(), user);
-        let welc = self.successful_login(username, token);
-
-        Ok(welc)
+        Ok(self.successful_login(username, token))
     }
     pub fn player_leave(&mut self, userc: &String) -> MessageResult {
         if let Some(user) = self.users.get_mut(userc) {
@@ -213,6 +197,21 @@ impl State {
 
     const RECAP_CHUNK_SZ: usize = 64;
 
+    fn user_can_view(&self, Message { data, .. }: &Message, username: &String) -> bool {
+        if data.is_global() {return true;} 
+        else if let Some(uname) = data.get_subject_player() { 
+            if uname == *username { return true }
+        } 
+        else if let Some(chatn) = data.get_chat_name() {
+            if let Some(ch) = self.chats.get(&chatn) { 
+            if ch.can_read(self.users.get(username).expect("Assumed that the user exists if their visibility is checked.")) {
+            return  true; }
+            }
+        }
+        false 
+
+    } 
+
     fn recap(&self, username: &String) -> MessageResult {
         let mut out = Vec::new();
         let mut mbuf = Vec::new();
@@ -220,27 +219,7 @@ impl State {
         let mut chunks = 0;
 
         for m in self.history.iter() {
-            let add = {
-                m.data.is_global()
-                    | match m.data.get_subject_player() {
-                        Some(uname) => uname == *username,
-                        None => false,
-                    }
-                    | match m.data.get_chat_name() {
-                        None => false,
-                        Some(chatn) => {
-                            if let Some(_ch) = self.chats.get(&chatn) {
-                                println!("recap chat message {:?}", chatn);
-                                true
-                                // ch.check_player(user)
-                            } else {
-                                false
-                            }
-                        }
-                    }
-            };
-
-            if add {
+            if self.user_can_view(m, username) {
                 if mbuf.len() < Self::RECAP_CHUNK_SZ {
                     mbuf.push(m);
                 } else {

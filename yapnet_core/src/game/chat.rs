@@ -11,8 +11,24 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
-//
-pub use crate::protocol::{ChatSetup, Perm, message::MessageData, message::Message};
-pub use crate::game::{chat::{Chat, Chats},user::{User, Users},MessageResult};
-pub use crate::game::history::History;
 
+use super::user::User; 
+use crate::protocol::Perms;
+use std::collections::HashMap;
+
+pub type Chats = HashMap<String, Chat>; 
+
+pub struct Chat {
+    pub perms: Perms
+}
+
+impl Chat {
+    pub fn can_write(&self, _: &User) -> bool {
+        // Todo: Check permissions
+        return true;
+    }
+    pub fn can_read(&self, _: &User) -> bool {
+        // Todo: Check permissions
+        return true;
+    }
+}

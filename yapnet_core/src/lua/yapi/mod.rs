@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use mlua::prelude::*;
 use mlua::StdLib;
 use mlua::chunk;
-use crate::game::User; 
+use crate::game::user::User; 
 use crate::protocol::Perm;
 
 type RoleID = String; 

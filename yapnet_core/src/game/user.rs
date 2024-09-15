@@ -12,7 +12,23 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 //
-pub use crate::protocol::{ChatSetup, Perm, message::MessageData, message::Message};
-pub use crate::game::{chat::{Chat, Chats},user::{User, Users},MessageResult};
-pub use crate::game::history::History;
 
+use std::collections::HashMap;
+
+use uuid::Uuid; 
+
+pub type Users = HashMap<String, User>;
+
+pub struct User {
+    pub online: bool,
+    pub uuid: Uuid,
+}
+
+impl User {
+    pub fn new(uuid: Uuid) -> Self {
+        return Self {
+            uuid, 
+            online: true,
+        }
+    } 
+} 
