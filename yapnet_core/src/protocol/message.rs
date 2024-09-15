@@ -112,3 +112,23 @@ impl MessageData {
         }
     }
 }
+
+impl Into<String> for &Message {
+    fn into(self) -> String {
+        serde_json::to_string(self).expect("Right now we do not handle errors in serialization")
+    }
+} 
+
+impl From<MessageData> for Message {
+    fn from(value: MessageData) -> Self {
+        Message { seq: 0, data: value}
+    } 
+}
+
+impl Into<String> for MessageData {
+    fn into(self) -> String {
+        let msg: &Message = &self.into(); 
+        return msg.into();
+    } 
+}
+

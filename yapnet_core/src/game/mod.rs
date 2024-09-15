@@ -14,6 +14,25 @@
 
 use uuid::Uuid; 
 use crate::protocol::Perm;
+pub mod history;
+
+#[derive(Debug)]
+pub enum MessageResult {
+    /// Send message to everyone
+    Broadcast(String),
+    /// Send message to everyone but the client who's message we are reacting too
+    BroadcastExclusive(String),
+    /// Error, only send the message to the one client
+    Error(String),
+    /// Only send the message to the one client who sent this message
+    Return(String),
+    /// Composite message for things like joining, leaving and recap
+    Many(Vec<MessageResult>),
+    /// Bulk messages, like Recaps
+    Bulk(Vec<String>),
+    /// Empty
+    None,
+}
 
 pub struct User {
     pub online: bool,

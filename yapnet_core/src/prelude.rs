@@ -13,4 +13,6 @@
 //   limitations under the License.
 //
 pub use crate::protocol::{ChatSetup, Perm, message::MessageData, message::Message};
-pub use crate::game::{Chat,User};
+pub use crate::game::{Chat,User,MessageResult};
+pub use crate::game::history::History;
+

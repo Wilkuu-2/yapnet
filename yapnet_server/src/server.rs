@@ -13,9 +13,10 @@
 //   limitations under the License.
 
 use crate::lua::state_init;
-use crate::state::{error_result, MessageResult, State};
+use crate::state::{error_result, State};
 use yapnet_core::lua::yapi::init_lua_from_argv;
 use yapnet_core::protocol::message::*;
+use yapnet_core::game::MessageResult;
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
 use std::collections::HashMap;
 use tokio::{
