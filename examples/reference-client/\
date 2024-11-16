@@ -1,0 +1,88 @@
+use std::{error};
+
+use ratatui::text::{Text, ToText};
+use tokio::sync::broadcast::{Receiver, Sender};
+use tui_textarea::TextArea;
+use tui_widgets::scrollview::ScrollViewState;
+use yapnet_client::{Client, ClientResult};
+
+/// Application result type.
+pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
+
+pub enum AppState {
+    Login, 
+    Chat,
+}
+
+/// Application.
+pub struct App<'a> {
+    /// Is the application running?
+    pub running: bool,
+    pub messages: Vec<UIMessage>,
+    pub client: Option<Client>,
+    pub state: AppState, 
+    pub input: TextArea<'a>,
+    pub scroll: ScrollViewState,
+}
+
+impl<'a> Default for App<'a>{
+    fn default() -> Self {
+        Self {
+            running: true,
+            messages: vec![],
+            client: None,
+            state: AppState::Login,
+            input: TextArea::default(),
+            scroll: ScrollViewState::default(),
+        }
+    }
+}
+
+impl<'a> App<'a> {
+    /// Constructs a new instance of [`App`].
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Handles the tick event of the terminal.
+    pub fn tick(&self) {}
+
+    /// Set running to false to quit the application.
+    pub fn quit(&mut self) {
+        self.running = false;
+    }
+
+    pub fn submit_uimessage(&mut self, msg: UIMessage ){
+        self.messages.push(msg)        
+    }
+
+    pub fn enter_message(&mut self){
+    }
+
+    pub async fn handle_wsmessage(&mut self, wait_on: Option<Receiver<()>>) -> ClientResult { 
+        if let Some(mut wait) = wait_on {
+            let _ = wait.recv().await; 
+        }
+        // Assuming that the wait_on is set to the connect call.
+        self.client.as_mut().unwrap().recieve_and_handle().await
+    }
+    pub async fn connect_socket(&mut self, url: String, sender: Sender<()> ) {
+        self.client = Some(Client::connect(url).await.unwrap()); 
+        sender.send(()).expect("Message handler is only to be called once");
+    }
+
+}
+
+#[derive(Debug)]
+pub struct UIMessage { 
+    location: String, 
+    player: String, 
+    content: String,
+} 
+
+impl<'t> Into<Text<'t>> for &'t UIMessage {
+    fn into(self) -> Text<'t> {
+        Text::raw(format!("{}@{}:{}", self.location, self.player, self.content))
+    }
+
+}

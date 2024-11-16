@@ -1,0 +1,17 @@
+[package]
+name = "reference-client"
+version = "0.1.0"
+authors = ["Jakub Stachurski <j.stachurski@student.utwente.nl>"]
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+yapnet_client = { path="../../yapnet_client"} 
+yapnet_core = { path="../../yapnet_core"} 
+crossterm = { version = "0.28.1", features = ["event-stream"] }
+futures = "0.3.31"
+ratatui = "0.29.0"
+tokio = { version = "1.40.0", features = ["full"] }
+tui-widgets = "0.4.0"
+tui-textarea = "0.7.0"
+uuid = "1.11.0"
