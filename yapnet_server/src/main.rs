@@ -27,9 +27,9 @@ use std::net::SocketAddr;
 use tokio;
 use tower_http::services::ServeDir;
 
+mod lua;
 mod server;
 mod state;
-mod lua;
 
 pub use yapnet_core::protocol::message::*;
 

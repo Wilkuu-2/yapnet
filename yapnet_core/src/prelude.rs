@@ -12,7 +12,10 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 //
-pub use crate::protocol::{ChatSetup, Perm, message::MessageData, message::Message};
-pub use crate::game::{chat::{Chat, Chats},user::{User, Users},MessageResult};
 pub use crate::game::history::History;
-
+pub use crate::game::{
+    chat::{Chat, Chats},
+    user::{User, Users},
+    MessageResult,
+};
+pub use crate::protocol::{message::Message, message::MessageData, ChatSetup, Perm};

@@ -12,11 +12,11 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use super::user::User; 
+use super::user::User;
 use crate::protocol::Perms;
 use std::collections::HashMap;
 
-pub type Chats = HashMap<String, Chat>; 
+pub type Chats = HashMap<String, Chat>;
 pub type MessageRef = usize;
 
 pub struct Chat {
@@ -27,10 +27,10 @@ pub struct Chat {
 impl Chat {
     pub fn new(perms: Perms) -> Self {
         Self {
-            perms, 
-            messages: vec![]
-        } 
-    } 
+            perms,
+            messages: vec![],
+        }
+    }
     pub fn can_write(&self, _: &User) -> bool {
         // Todo: Check permissions
         return true;

@@ -14,9 +14,6 @@
 
 use crate::lua::state_init;
 use crate::state::{error_result, State};
-use yapnet_core::lua::yapi::init_lua_from_argv;
-use yapnet_core::protocol::message::*;
-use yapnet_core::game::MessageResult;
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
 use std::collections::HashMap;
 use tokio::{
@@ -24,6 +21,9 @@ use tokio::{
     sync::mpsc::{channel, Receiver, Sender},
     task::JoinHandle,
 };
+use yapnet_core::game::MessageResult;
+use yapnet_core::lua::yapi::init_lua_from_argv;
+use yapnet_core::protocol::message::*;
 
 /// Server stored handle to the client task
 pub struct ClientConnection {
@@ -191,10 +191,9 @@ impl Server {
             MessageResult::Error(m) | MessageResult::Return(m) => {
                 if let Some(client) = self.clients.get(&cid) {
                     match client.to_client.send(m).await {
-                        Ok(()) => () ,
+                        Ok(()) => (),
                         Err(err) => eprintln!("[Send error] {:?}", err),
-
-                    } 
+                    }
                 }
             }
             MessageResult::BroadcastExclusive(m) => {
@@ -203,20 +202,18 @@ impl Server {
                         continue;
                     }
                     match client.to_client.send(m.clone()).await {
-                        Ok(()) => () ,
+                        Ok(()) => (),
                         Err(err) => eprintln!("[Send error] {:?}", err),
-
-                    } 
+                    }
                     // TODO: Handle error and see what we can do about the clone
                 }
             }
             MessageResult::Broadcast(m) => {
                 for (_, client) in &self.clients {
                     match client.to_client.send(m.clone()).await {
-                        Ok(()) => () ,
+                        Ok(()) => (),
                         Err(err) => eprintln!("[Send error] {:?}", err),
-
-                    } 
+                    }
                     // TODO: Handle error and see what we can do about the clone
                 }
             }
@@ -233,10 +230,9 @@ impl Server {
                 let client = self.clients.get(&cid).unwrap();
                 for m in messages {
                     match client.to_client.send(m).await {
-                        Ok(()) => () ,
+                        Ok(()) => (),
                         Err(err) => eprintln!("[Send error] {:?}", err),
-
-                    } 
+                    }
                     // TODO: Handle error
                 }
             }

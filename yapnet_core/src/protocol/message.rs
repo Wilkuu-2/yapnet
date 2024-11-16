@@ -12,10 +12,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use super::ChatSetup;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
-use super::ChatSetup;
 
 /// Metadata wrapping the message body
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,7 +34,7 @@ pub struct Message {
 pub enum MessageData {
     /// Server: Game setup
     #[serde(rename = "stup")]
-    Setup { chats: Vec<ChatSetup>},  
+    Setup { chats: Vec<ChatSetup> },
     // Player movement protocol
     /// Client: First time join
     #[serde(rename = "helo")]
@@ -107,7 +107,7 @@ impl MessageData {
 
     pub fn is_global(&self) -> bool {
         match self {
-            Self::PlayerLeft { .. } | Self::PlayerJoined { .. } | Self::Setup { .. }=> true,
+            Self::PlayerLeft { .. } | Self::PlayerJoined { .. } | Self::Setup { .. } => true,
             _ => false,
         }
     }
@@ -117,18 +117,20 @@ impl Into<String> for &Message {
     fn into(self) -> String {
         serde_json::to_string(self).expect("Right now we do not handle errors in serialization")
     }
-} 
+}
 
 impl From<MessageData> for Message {
     fn from(value: MessageData) -> Self {
-        Message { seq: 0, data: value}
-    } 
+        Message {
+            seq: 0,
+            data: value,
+        }
+    }
 }
 
 impl Into<String> for MessageData {
     fn into(self) -> String {
-        let msg: &Message = &self.into(); 
+        let msg: &Message = &self.into();
         return msg.into();
-    } 
+    }
 }
-

@@ -12,8 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
+pub mod game;
+pub mod lua;
+pub mod prelude;
 pub mod protocol;
-pub mod prelude; 
-pub mod lua; 
-pub mod game; 

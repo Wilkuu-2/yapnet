@@ -43,21 +43,21 @@ async fn main() -> AppResult<()> {
     let events = EventHandler::new(250);
     let mut tui = Tui::new(terminal, events);
     tui.init()?;
-    
+
     // Todo: add ability to reconnect
     let (tx, rx) = broadcast::channel(10);
     app.on_connect = Some(tx);
-    
+
     tui.draw(&mut app)?;
     // Start the main loop.
     while app.running {
         let wakey = match app.client.is_some() {
-            true => None, 
-            false => Some(rx.resubscribe())
+            true => None,
+            false => Some(rx.resubscribe()),
         };
 
         tokio::select! {
-            e = tui.events.next() => { 
+            e = tui.events.next() => {
                 let event = e?;
                 // Render the user interface.
                 // Handle events.

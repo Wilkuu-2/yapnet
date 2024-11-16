@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-use uuid::Uuid; 
+use uuid::Uuid;
 
 pub type Users = HashMap<String, User>;
 
@@ -26,9 +26,6 @@ pub struct User {
 
 impl User {
     pub fn new(uuid: Uuid) -> Self {
-        return Self {
-            uuid, 
-            online: true,
-        }
-    } 
-} 
+        return Self { uuid, online: true };
+    }
+}

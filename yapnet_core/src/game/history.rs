@@ -12,8 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-
-use crate::protocol::message::*; 
+use crate::protocol::message::*;
 
 pub struct History {
     inner: Vec<Message>,
@@ -30,10 +29,9 @@ impl History {
 
     pub fn iter<'a>(&'a self) -> HistoryIter<'a> {
         HistoryIter {
-            index: 0, 
+            index: 0,
             data: self,
         }
-        
     }
 
     /// This should be only done when sending messages.
@@ -55,14 +53,14 @@ impl History {
         d
     }
 
-    pub fn push(&mut self, m:MessageData){
+    pub fn push(&mut self, m: MessageData) {
         let s = self.seq;
         self.seq += 1;
         let message = Message { seq: s, data: m };
         self.inner.push(message);
     }
 
-    // TODO: Move to server code 
+    // TODO: Move to server code
 
     pub fn print_state(&self) {
         println!("---- [State] ----");
@@ -72,21 +70,16 @@ impl History {
     }
 }
 
-
 pub struct HistoryIter<'a> {
     data: &'a History,
     index: usize,
-} 
+}
 
 impl<'a> Iterator for HistoryIter<'a> {
     type Item = &'a Message;
     fn next(&mut self) -> Option<Self::Item> {
         let o = self.data.inner.get(self.index);
-        self.index += 1; 
-        return o; 
-        
-    } 
-
-        
+        self.index += 1;
+        return o;
+    }
 }
-

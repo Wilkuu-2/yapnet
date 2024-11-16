@@ -13,70 +13,74 @@
 //  limitations under the License.
 
 pub mod message;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChatSetup {
     pub name: String,
-    pub perm: Perms 
-} 
+    pub perm: Perms,
+}
 
 /// Permissions for chats
-/// 
+///
 ///
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Perm {
     /// This user has permission
     #[serde(rename = "user")]
-    User{
-        /// 1: read, 2: write, 3: all 
-        rw: u8,  
+    User {
+        /// 1: read, 2: write, 3: all
+        rw: u8,
         /// Name of the user
-        name: String
-    }, 
+        name: String,
+    },
     /// This group has permission
     #[serde(rename = "group")]
-    Group{ 
-        /// 1: read, 2: write, 3: all 
-        rw: u8, 
+    Group {
+        /// 1: read, 2: write, 3: all
+        rw: u8,
         /// Name of the group
-        name: String 
-    }, 
-    /// Everyone has permission 
-    #[serde(rename = "any")]
-    Any{
-        /// 1: read, 2: write, 3: all 
-        rw: u8,  
+        name: String,
     },
-}  
+    /// Everyone has permission
+    #[serde(rename = "any")]
+    Any {
+        /// 1: read, 2: write, 3: all
+        rw: u8,
+    },
+}
 
 impl Perm {
     pub fn check_player(&self, username: &String) -> Option<u8> {
-        match self {  
-            Self::Any{rw} => Some(rw.clone()),  
-            Self::User {name, rw } => {
-               if *name == *username {Some(rw.clone())} 
-                else {None} 
-            }, 
-            _ => None 
-        } 
-        
+        match self {
+            Self::Any { rw } => Some(rw.clone()),
+            Self::User { name, rw } => {
+                if *name == *username {
+                    Some(rw.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
     pub fn check_group(&self, groupname: &String) -> Option<u8> {
-        match self {  
-            Self::Any{rw} => Some(rw.clone()),  
-            Self::Group {name, rw } => {
-               if *name == *groupname {Some(rw.clone())} 
-                else {None} 
-            }, 
-            _ => None 
-        } 
+        match self {
+            Self::Any { rw } => Some(rw.clone()),
+            Self::Group { name, rw } => {
+                if *name == *groupname {
+                    Some(rw.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
-} 
+}
 
-
-#[derive(Clone,Debug, Serialize, Deserialize)]
-pub struct Perms (Vec<Perm>);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Perms(Vec<Perm>);
 
 impl Perms {
     pub fn new() -> Self {
@@ -88,26 +92,21 @@ impl Perms {
     }
 
     pub fn check_player(&self, username: &String) -> u8 {
-        let mut rw: u8 = 0; 
+        let mut rw: u8 = 0;
         for item in self.0.iter() {
             if let Some(p) = item.check_player(username) {
-                rw |= p; 
+                rw |= p;
             }
         }
         rw
-    } 
+    }
     pub fn check_group(&self, groupname: &String) -> u8 {
-        let mut rw: u8 = 0; 
+        let mut rw: u8 = 0;
         for item in self.0.iter() {
             if let Some(p) = item.check_group(groupname) {
-                rw |= p; 
+                rw |= p;
             }
         }
         rw
-    } 
-
+    }
 }
-
-
-
-
