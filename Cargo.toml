@@ -19,4 +19,5 @@ members = [
   "yapnet_core",
   "yapnet_server",
   "yapnet_client",
+  "examples/*",
 ] 

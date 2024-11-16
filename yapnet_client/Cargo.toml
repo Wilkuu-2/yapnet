@@ -18,3 +18,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tungstenite = "0.24.0"
+yapnet_core = { path="../yapnet_core"} 
+uuid = { version = "1.10.0", features = ["serde", "v4"] }
+serde_json = "1.0.132"
+tokio-tungstenite = "0.24.0"
+tokio = { version = "1.41.1", features = ["macros", "net", "sync", "tracing"] }
+tracing = { version = "0.1.40", features = ["async-await", "log"] }
+futures-util = { version = "0.3.31", features = ["tokio-io", "sink"] }

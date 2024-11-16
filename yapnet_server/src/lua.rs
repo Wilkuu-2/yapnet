@@ -47,7 +47,7 @@ pub fn state_init(lua: Lua) -> State{
                         g => Perm::Group { rw: 3, name: g.to_string() },
                     };
                     
-                    let v = Chat {perms: Perms::wrap_vec(vec![perm])}; 
+                    let v = Chat {perms: Perms::wrap_vec(vec![perm]), messages: vec![]}; 
                     state.chats.insert(name.clone(), v); 
                 }, 
                 Err(e) => eprintln!("Cannot parse chat: {}", e), 

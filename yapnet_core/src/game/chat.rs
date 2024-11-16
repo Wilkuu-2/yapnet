@@ -17,12 +17,20 @@ use crate::protocol::Perms;
 use std::collections::HashMap;
 
 pub type Chats = HashMap<String, Chat>; 
+pub type MessageRef = usize;
 
 pub struct Chat {
-    pub perms: Perms
+    pub perms: Perms,
+    pub messages: Vec<MessageRef>,
 }
 
 impl Chat {
+    pub fn new(perms: Perms) -> Self {
+        Self {
+            perms, 
+            messages: vec![]
+        } 
+    } 
     pub fn can_write(&self, _: &User) -> bool {
         // Todo: Check permissions
         return true;
