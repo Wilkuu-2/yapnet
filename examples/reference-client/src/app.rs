@@ -25,7 +25,7 @@ use tui_textarea::TextArea;
 use tui_widgets::scrollview::ScrollViewState;
 use uuid::Uuid;
 use yapnet_client::{Client, ClientAction};
-use yapnet_core::prelude::MessageData;
+use yapnet_core::prelude::{ChatSent, MessageData};
 
 use crate::ui::SubListState;
 
@@ -112,10 +112,10 @@ impl<'a> App<'a> {
     pub async fn send_chat(&mut self, content: String) {
         if let Some(client) = &mut self.client {
             let res = client
-                .send_message(yapnet_core::prelude::MessageData::ChatSend {
+                .send_message(yapnet_core::prelude::ChatSend {
                     chat_target: self.current_chat.clone(),
                     chat_content: content,
-                })
+                }.into())
                 .await;
 
             match res {
@@ -244,7 +244,7 @@ impl<'a> App<'a> {
                 self.submit_uimessage(UIMessage::sys(&format!("Player {} joined", username)));
             }
             ClientAction::Chat(e) => {
-                let (chat_sender, chat_target, chat_content) = match &self
+                let opt: &Result<ChatSent, ()> = &self
                     .client
                     .as_ref()
                     .unwrap()
@@ -252,25 +252,18 @@ impl<'a> App<'a> {
                     .messages
                     .get(e.clone())
                     .unwrap()
-                    .data
-                {
-                    MessageData::ChatSent {
-                        chat_sender,
-                        chat_target,
-                        chat_content,
-                    } => (chat_sender, chat_target, chat_content),
-                    _ => {
-                        return;
-                    }
-                };
+                    .data.clone().try_into(); 
 
-                let a = UIMessage {
-                    player: chat_sender.to_string(),
-                    location: chat_target.to_string(),
-                    content: chat_content.to_string(),
-                };
+                if let Ok(ChatSent{chat_sender,chat_target,chat_content}) = opt{
 
-                self.submit_uimessage(a);
+                    let a = UIMessage {
+                        player: chat_sender.to_string(),
+                        location: chat_target.to_string(),
+                        content: chat_content.to_string(),
+                    };
+
+                    self.submit_uimessage(a);
+                }
             }
             ClientAction::Error(e) => {
                 self.submit_uimessage(UIMessage::err(&format!("Server Error: {}", e)));

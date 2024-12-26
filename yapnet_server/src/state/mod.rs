@@ -47,29 +47,30 @@ impl State {
             })
         }
 
-        self.history.push(MessageData::Setup { chats })
+        self.history.push(Setup { chats }.into())
     }
 
     pub fn handle_message(&mut self, username: &String, m: Message) -> MessageResult {
         return match m.data {
-            MessageData::Back { .. } | MessageData::Hello { .. } => {
+            MessageData::BodyBack { .. } | MessageData::BodyHello { .. } => {
                 unreachable!("Back and Hello should be already handled")
             }
 
-            MessageData::ChatSend { .. } => self.handle_chat(username, m),
+            MessageData::BodyChatSend { .. } => self.handle_chat(username, m),
 
-            MessageData::Welcome { .. }
-            | MessageData::ChatSent { .. }
-            | MessageData::PlayerLeft { .. }
-            | MessageData::PlayerJoined { .. }
-            | MessageData::RecapHead { .. }
-            | MessageData::RecapTail { .. }
-            | MessageData::Setup { .. } => {
+            MessageData::BodyWelcome { .. }
+            | MessageData::BodyChatSent { .. }
+            | MessageData::BodyPlayerLeft { .. }
+            | MessageData::BodyPlayerJoined { .. }
+            | MessageData::BodyRecapHead { .. }
+            | MessageData::BodyRecapTail { .. }
+            | MessageData::BodySetup { .. } => {
                 println!("Server side packet sent by client!");
                 MessageResult::None
             }
-            MessageData::Echo(_) => todo!("echo"),
-            MessageData::Error { .. } => todo!("error"),
+            MessageData::BodyEcho(_) => todo!("echo"),
+            MessageData::BodyTestMessage(_) => unreachable!(),
+            MessageData::BodyError { .. } => todo!("error"),
         };
     }
 
@@ -96,10 +97,10 @@ impl State {
     }
 
     fn handle_chat(&mut self, sender: &String, m: Message) -> MessageResult {
-        if let MessageData::ChatSend {
+        if let MessageData::BodyChatSend( ChatSend {
             chat_target,
             chat_content,
-        } = m.data
+        }) = m.data
         {
             let player = self.users.get(sender).expect("");
             if let Some(chat) = self.chats.get(&chat_target) {
@@ -116,13 +117,12 @@ impl State {
                     }
 
                     MessageResult::Broadcast(
-                        serde_json::to_string(self.history.state_message(MessageData::ChatSent {
+                        self.history.state_message(ChatSent {
                             chat_sender: sender.clone(),
                             chat_target,
                             chat_content,
-                        }))
-                        .expect("Chat serialization failure"),
-                    )
+                        }.into()).clone())
+                    
                 } else {
                     error_result(
                         "ChatPermDeny",
@@ -194,9 +194,9 @@ impl State {
     pub fn player_leave(&mut self, userc: &String) -> MessageResult {
         if let Some(user) = self.users.get_mut(userc) {
             user.online = false;
-            MessageResult::Broadcast(self.history.push_and_serialize(MessageData::PlayerLeft {
+            MessageResult::Broadcast(self.history.state_message(PlayerLeft {
                 username: userc.clone(),
-            }))
+            }.into()).clone())
         } else {
             MessageResult::None
         }
@@ -208,14 +208,16 @@ impl State {
 
     const RECAP_CHUNK_SZ: usize = 64;
 
-    fn user_can_view(&self, Message { data, .. }: &Message, username: &String) -> bool {
-        if data.is_global() {
+    fn user_can_view(&self, msg: &Message, username: &String) -> bool {
+        let obj = msg.data.to_inner_ref();
+
+        if obj.is_global() {
             return true;
-        } else if let Some(uname) = data.get_subject_player() {
+        } else if let Some(uname) = obj.subject() {
             if uname == *username {
                 return true;
             }
-        } else if let Some(chatn) = data.get_chat_name() {
+        } else if let Some(chatn) = obj.chat() {
             if let Some(ch) = self.chats.get(&chatn) {
                 if ch.can_read(
                     self.users
@@ -244,13 +246,13 @@ impl State {
 
                     out.push(Message {
                         seq: chunks as u64,
-                        data: MessageData::RecapTail {
+                        data: RecapTail {
                             start: start_cursor,
                             msgs: mbuf
                                 .iter()
                                 .map(|m| serde_json::to_value(m).unwrap())
                                 .collect(),
-                        },
+                        }.into(),
                     });
 
                     start_cursor += mbuf.len();
@@ -263,29 +265,29 @@ impl State {
             chunks += 1;
             out.push(Message {
                 seq: chunks as u64,
-                data: MessageData::RecapTail {
+                data: RecapTail {
                     start: start_cursor,
                     msgs: mbuf
                         .iter()
                         .map(|m| serde_json::to_value(m).unwrap())
                         .collect(),
-                },
+                }.into(),
             });
         }
 
         let head = MessageResult::Return(
-            MessageData::RecapHead {
+            RecapHead {
                 count: chunks,
                 chunk_sz: Self::RECAP_CHUNK_SZ,
             }
-            .into(),
+            .into_message(),
         );
 
         MessageResult::Many(vec![
             head,
             MessageResult::Bulk(
                 out.iter()
-                    .map(|m| serde_json::to_string(m).unwrap())
+                    .map(|m| m.clone()) // See if you can somehow avoid this clone
                     .collect(),
             ),
         ])
@@ -293,14 +295,14 @@ impl State {
 
     fn successful_login(&mut self, username: &String, uuid: Uuid) -> MessageResult {
         let recap = self.recap(username);
-        let welcome = MessageData::Welcome {
+        let welcome = Welcome {
             username: username.clone(),
             token: uuid,
-        }
-        .into();
-        let player_joined = self.history.push_and_serialize(MessageData::PlayerJoined {
+        }.into_message();
+
+        let player_joined = self.history.state_message(PlayerJoined {
             username: username.clone(),
-        });
+        }.into()).clone();
         MessageResult::Many(vec![
             MessageResult::Return(welcome),
             MessageResult::BroadcastExclusive(player_joined),
@@ -310,21 +312,19 @@ impl State {
 }
 
 fn error_message(kind: &'static str, info: String, details: Option<String>) -> Message {
-    MessageData::Error {
+    Error {
         kind: kind.to_string(),
         info,
         details: details.unwrap_or("{}".to_string()),
-    }
-    .into()
+    }.into_message()
 }
 
 pub fn error_result(kind: &'static str, info: String, details: Option<String>) -> MessageResult {
     MessageResult::Error(
-        MessageData::Error {
+        Error {
             kind: kind.to_string(),
             info,
             details: details.unwrap_or("{}".to_string()),
-        }
-        .into(),
+        }.into_message(),
     )
 }

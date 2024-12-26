@@ -14,11 +14,11 @@
 
 use std::vec;
 
-use crate::{state::State, Message};
+use crate::state::State;
 use mlua::prelude::*;
 use std::sync::Mutex;
 use std::{collections::HashMap, sync::Arc};
-use yapnet_core::protocol::Perms;
+use yapnet_core::protocol::{Perms, MessageV2 as Message};
 use yapnet_core::{game::chat::Chat, protocol::Perm};
 
 // use mlua::LuaSerdeExt;

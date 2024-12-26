@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 use core::panic;
-use std::{cell::RefCell, collections::HashMap};
+use std::collections::HashMap;
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
@@ -25,8 +25,7 @@ use tokio_tungstenite::{
 };
 use yapnet_core::{
     game::chat::MessageRef,
-    prelude::Chat,
-    protocol::message::{Message, MessageData},
+    prelude::*,
 };
 
 macro_rules! unpack_msg {
@@ -146,7 +145,7 @@ impl Client {
     }
 
     pub async fn send_register(&mut self, username: String) {
-        self.send_message_pre(MessageData::Hello { username })
+        self.send_message_pre(Hello { username }.into())
             .await
             .unwrap()
     }
@@ -159,7 +158,7 @@ impl Client {
     }
 
     pub async fn send_login(&mut self, token: uuid::Uuid) {
-        self.send_message_pre(MessageData::Back { token })
+        self.send_message_pre(Back { token }.into())
             .await
             .unwrap();
     }
@@ -181,25 +180,22 @@ impl Client {
 
     fn handle_message(&mut self, msg: Message) -> ClientResult {
         let ret: ClientResultOuter = match msg.data {
-            MessageData::Error {
-                ref kind,
-                info: _,
-                ref details,
-            } => ClientResultOuter(
-                Ok(ClientAction::Error(format!("{} => {}", kind, details))),
+            MessageData::BodyError(ref err) => ClientResultOuter(
+                Ok(ClientAction::Error(format!("{} => {}", &err.kind, &err.details))),
                 false,
             ),
-            MessageData::PlayerJoined { .. } => self.handle_player_joined(&msg),
-            MessageData::PlayerLeft { .. } => self.handle_player_left(&msg),
-            MessageData::ChatSent { .. } => self.handle_chat(&msg),
-            MessageData::Welcome { .. } => self.handle_welcome(&msg),
-            MessageData::Setup { .. } => self.handle_setup(&msg),
-            MessageData::RecapHead { .. } => self.start_recap(&msg),
-            MessageData::RecapTail { .. } => self.progress_recap(&msg),
-            d @ MessageData::ChatSend { .. }
-            | d @ MessageData::Hello { .. }
-            | d @ MessageData::Back { .. }
-            | d @ MessageData::Echo(..) => panic!("Message for server sent here: {:?}", d),
+            MessageData::BodyPlayerJoined ( ref x ) => self.handle_player_joined(&x),
+            MessageData::BodyPlayerLeft ( ref x ) => self.handle_player_left(&x),
+            MessageData::BodyChatSent ( ref x ) => self.handle_chat(&x),
+            MessageData::BodyWelcome ( ref x ) => self.handle_welcome(&x),
+            MessageData::BodySetup ( ref x ) => self.handle_setup(&x),
+            MessageData::BodyRecapHead ( ref x ) => self.start_recap(&x),
+            MessageData::BodyRecapTail ( ref x ) => self.progress_recap(&x),
+            d @ MessageData::BodyChatSend ( .. )
+            | d @ MessageData::BodyHello ( .. )
+            | d @ MessageData::BodyBack ( .. )
+            | d @ MessageData::BodyEcho( .. ) => panic!("Message for server sent here: {:?}", d),
+            MessageData::BodyTestMessage(_) => todo!(),
         };
 
         if ret.1 {
@@ -208,98 +204,87 @@ impl Client {
         ret.0
     }
 
-    fn handle_player_joined(&mut self, msg: &Message) -> ClientResultOuter {
+    fn handle_player_joined(&mut self, msg: &PlayerJoined) -> ClientResultOuter {
         assert!(self.state.registered);
-        unpack_msg! {msg, MessageData::PlayerJoined { username } => {
-            let uname = username.clone();
-            if uname != self.state.username.clone().unwrap() {
-                if let Some(player) = self.lobby.players.get_mut(username) {
-                    if player.connected {
-                        eprintln!("Double player connection")
-                    }
-                    player.connected = true;
-                } else {
-                    let player = PlayerState::new(uname.clone());
-                    self.lobby.players.insert(uname.clone(), player);
+        let uname = msg.username.clone();
+        if uname != self.state.username.clone().unwrap() {
+            if let Some(player) = self.lobby.players.get_mut(&msg.username) {
+                if player.connected {
+                    eprintln!("Double player connection")
                 }
+                player.connected = true;
+            } else {
+                let player = PlayerState::new(uname.clone());
+                self.lobby.players.insert(uname.clone(), player);
             }
-            ClientResultOuter(Ok(ClientAction::PlayerJoined(uname)), true)
-        }}
+        }
+        ClientResultOuter(Ok(ClientAction::PlayerJoined(uname)), true)
     }
-    fn handle_player_left(&mut self, msg: &Message) -> ClientResultOuter {
+    
+    fn handle_player_left(&mut self, msg: &PlayerLeft) -> ClientResultOuter {
         assert!(self.state.registered);
-        unpack_msg! {msg, MessageData::PlayerLeft { username } => {
-            let uname = username.clone();
-            if uname != self.state.username.clone().unwrap() {
-                if let Some(player) = self.lobby.players.get_mut(username) {
-                    if !player.connected {
-                        eprintln!("Double player disconnection")
-                    }
-                    player.connected = false;
-                } else {
-                    let player = PlayerState::new(uname.clone());
-                    self.lobby.players.insert(uname.clone(), player).unwrap();
+        let uname = msg.username.clone();
+        if uname != self.state.username.clone().unwrap() {
+            if let Some(player) = self.lobby.players.get_mut(&msg.username) {
+                if !player.connected {
+                    eprintln!("Double player disconnection")
                 }
+                player.connected = false;
+            } else {
+                let player = PlayerState::new(uname.clone());
+                self.lobby.players.insert(uname.clone(), player).unwrap();
             }
-            ClientResultOuter(Ok(ClientAction::PlayerJoined(uname)), true)
-        }}
+        }
+        ClientResultOuter(Ok(ClientAction::PlayerJoined(uname)), true)
     }
-    fn handle_welcome(&mut self, msg: &Message) -> ClientResultOuter {
-        unpack_msg! {msg, MessageData::Welcome { username, token } => {
-            self.state.username = Some(username.clone());
-            self.state.token = Some(token.clone());
-            self.state.registered = true;
-        }};
+    fn handle_welcome(&mut self, Welcome {username, token}: &Welcome ) -> ClientResultOuter {
+        self.state.username = Some(username.clone());
+        self.state.token = Some(token.clone());
+        self.state.registered = true;
         ClientResultOuter(Ok(ClientAction::Welcome), false)
     }
-    fn handle_chat(&mut self, msg: &Message) -> ClientResultOuter {
-        unpack_msg! {msg, MessageData::ChatSent { chat_sender: _, chat_target , chat_content: _ } => {
-            let ind = self.state.get_pending_index();
-            self.lobby.chats.get_mut(chat_target).unwrap().messages.push(ind);
-            ClientResultOuter(Ok(ClientAction::Chat(ind)), true)
-        }}
+    fn handle_chat(&mut self, ChatSent{chat_target, ..}: &ChatSent) -> ClientResultOuter {
+        let ind = self.state.get_pending_index();
+        self.lobby.chats.get_mut(chat_target).unwrap().messages.push(ind);
+        ClientResultOuter(Ok(ClientAction::Chat(ind)), true)
     }
-    fn handle_setup(&mut self, msg: &Message) -> ClientResultOuter {
-        unpack_msg! {msg, MessageData::Setup {chats} => {
-            for chat in chats {
-                self.lobby.chats.insert(chat.name.clone(), Chat::new(chat.perm.clone()));
-            }
-        }};
+
+
+    fn handle_setup(&mut self, Setup { chats }: &Setup) -> ClientResultOuter {
+        for chat in chats {
+            self.lobby.chats.insert(chat.name.clone(), Chat::new(chat.perm.clone()));
+        }
         ClientResultOuter(Ok(ClientAction::None), true)
     }
-    fn start_recap(&mut self, msg: &Message) -> ClientResultOuter {
-        unpack_msg! {msg, MessageData::RecapHead { count, chunk_sz } => {
-            self.recap_info = Some(RecapInfo { chunk_sz: *chunk_sz, end_chunk: *count , current_seq: 0 })
-        }
-        };
+
+    fn start_recap(&mut self, RecapHead { count, chunk_sz }: &RecapHead) -> ClientResultOuter {
+        self.recap_info = Some(RecapInfo { chunk_sz: *chunk_sz, end_chunk: *count , current_seq: 0 });
         ClientResultOuter(Ok(ClientAction::None), false)
     }
-    fn progress_recap(&mut self, msg: &Message) -> ClientResultOuter {
+
+    fn progress_recap(&mut self, RecapTail { start, msgs }: &RecapTail) -> ClientResultOuter {
         let mut actions: Vec<ClientResult> = vec![];
-        unpack_msg! {msg, MessageData::RecapTail { start, msgs } => {
-            let (end, mut current) = match &self.recap_info {
-                Some(recap) => (recap.end_chunk, recap.current_seq),
-                None => { return ClientResultOuter(Err(Error::NoRecapHead) ,false);} ,
+        let (_, mut current) = match &self.recap_info {
+            Some(recap) => (recap.end_chunk, recap.current_seq),
+            None => { return ClientResultOuter(Err(Error::NoRecapHead) ,false);} ,
+        };
 
-            };
+        assert_eq!(*start, current);
+        for msgv in msgs {
+            let msg: Message = serde_json::from_value(msgv.clone()).unwrap();
 
-            assert_eq!(*start, current);
-            for msgv in msgs {
-                let msg: Message = serde_json::from_value(msgv.clone()).unwrap();
+            // debug_assert_eq!(msg.seq as usize, current);
 
-                // debug_assert_eq!(msg.seq as usize, current);
+            // Todo: Make sure that the chunks are counted properly
+            // debug_assert!((msg.seq as usize) <= end);
 
-                // Todo: Make sure that the chunks are counted properly
-                // debug_assert!((msg.seq as usize) <= end);
+            current += 1;
 
-                current += 1;
-
-                actions.push(self.handle_message(msg))
-            }
+            actions.push(self.handle_message(msg))
+        }
 
 
-            self.recap_info.as_mut().unwrap().current_seq = current;
-        }};
+        self.recap_info.as_mut().unwrap().current_seq = current;
 
         let recap = self.recap_info.as_ref().unwrap();
         if recap.current_seq >= recap.end_chunk {

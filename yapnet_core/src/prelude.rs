@@ -18,4 +18,4 @@ pub use crate::game::{
     user::{User, Users},
     MessageResult,
 };
-pub use crate::protocol::{message::Message, message::MessageData, ChatSetup, Perm};
+pub use crate::protocol::{body::MessageV2Enum as MessageData, body::*, ChatSetup, MessageDataV2 as MessageBody, MessageV2 as Message, Perm};

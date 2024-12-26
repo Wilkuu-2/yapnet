@@ -14,7 +14,10 @@
 
 use crate::lua::state_init;
 use crate::state::{error_result, State};
+use async_recursion::async_recursion;
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
+use yapnet_core::lua::yapi::init_lua_from_argv;
+use yapnet_core::prelude::Message;
 use std::collections::HashMap;
 use tokio::{
     select,
@@ -22,8 +25,7 @@ use tokio::{
     task::JoinHandle,
 };
 use yapnet_core::game::MessageResult;
-use yapnet_core::lua::yapi::init_lua_from_argv;
-use yapnet_core::protocol::message::*;
+use yapnet_core::prelude::*;
 
 /// Server stored handle to the client task
 pub struct ClientConnection {
@@ -38,7 +40,7 @@ type ClientMessage = String;
 pub struct Client {
     cid: usize,
     from_server: Receiver<ClientMessage>,
-    to_server: Sender<super::Message>,
+    to_server: Sender<Message>,
     remove_clients: Sender<CloseConnection>,
     websocket: WebSocket,
 }
@@ -60,7 +62,7 @@ pub enum CloseConnectionReason {
 /// Passed into AppState (And the client)
 #[derive(Clone)]
 pub struct ServerHandle {
-    pub messages: Sender<super::Message>,
+    pub messages: Sender<Message>,
     pub add_clients: Sender<WebSocket>,
     pub remove_clients: Sender<CloseConnection>,
 }
@@ -68,7 +70,7 @@ pub struct ServerHandle {
 /// Websocket server task
 pub struct Server {
     state: State,
-    pub messages: Receiver<super::Message>,
+    pub messages: Receiver<Message>,
     pub add_clients: Receiver<WebSocket>,
     pub remove_clients: Receiver<CloseConnection>,
     handle: ServerHandle,
@@ -155,7 +157,7 @@ impl Server {
     pub fn handle_message(&mut self, m: Message) -> MessageResult {
         let cid = m.seq;
         match m.data {
-            MessageData::Hello { username } => match self.state.new_user(&username) {
+            MessageData::BodyHello( Hello { username }) => match self.state.new_user(&username) {
                 Ok(o) => {
                     self.users_connections
                         .insert(cid as usize, username.clone());
@@ -163,7 +165,7 @@ impl Server {
                 }
                 Err(o) => o,
             },
-            MessageData::Back { token } => match self.state.reauth_user(token) {
+            MessageData::BodyBack( Back { token }) => match self.state.reauth_user(token) {
                 Ok((username, o)) => {
                     self.users_connections
                         .insert(cid as usize, username.clone());
@@ -186,14 +188,31 @@ impl Server {
         }
     }
 
+    #[async_recursion(?Send)]
+    async fn try_serialize_send(&self, client: &ClientConnection, m: &Message) {
+            let x = serde_json::to_string(&m);
+            if let Ok(msg) = x {
+                match client.to_client.send(msg).await {
+                    Ok(()) => (),
+                    Err(err) => eprintln!("[Send error] {:?}", err),
+                    // TODO: Handle this error by disconnecting the player 
+                }
+            } else if let Err(err) = x{
+                eprintln!("[Serialization Error] {:?}", err);
+                self.send_result(client.id, MessageResult::Error( Error {
+                    kind: "ESER".to_owned() ,
+                    info: format!("Message serialization failed at seq: {}", m.seq),
+                    details: "".to_string(),
+                }.into_message())).await;
+            }  
+        
+    }
+
     async fn send_result(&self, cid: usize, m: MessageResult) {
         match m {
             MessageResult::Error(m) | MessageResult::Return(m) => {
                 if let Some(client) = self.clients.get(&cid) {
-                    match client.to_client.send(m).await {
-                        Ok(()) => (),
-                        Err(err) => eprintln!("[Send error] {:?}", err),
-                    }
+                    self.try_serialize_send(client, &m).await;
                 }
             }
             MessageResult::BroadcastExclusive(m) => {
@@ -201,19 +220,13 @@ impl Server {
                     if cid == *cid2 {
                         continue;
                     }
-                    match client.to_client.send(m.clone()).await {
-                        Ok(()) => (),
-                        Err(err) => eprintln!("[Send error] {:?}", err),
-                    }
+                    self.try_serialize_send(client, &m).await;
                     // TODO: Handle error and see what we can do about the clone
                 }
             }
             MessageResult::Broadcast(m) => {
                 for (_, client) in &self.clients {
-                    match client.to_client.send(m.clone()).await {
-                        Ok(()) => (),
-                        Err(err) => eprintln!("[Send error] {:?}", err),
-                    }
+                    self.try_serialize_send(client, &m).await;
                     // TODO: Handle error and see what we can do about the clone
                 }
             }
@@ -221,19 +234,15 @@ impl Server {
             // Recursively send all the results
             MessageResult::Many(ms) => {
                 for m in ms {
-                    Box::pin(self.send_result(cid, m)).await
+                    Box::pin(self.send_result(cid,m)).await
                 }
             }
 
             MessageResult::None => (),
             MessageResult::Bulk(messages) => {
                 let client = self.clients.get(&cid).unwrap();
-                for m in messages {
-                    match client.to_client.send(m).await {
-                        Ok(()) => (),
-                        Err(err) => eprintln!("[Send error] {:?}", err),
-                    }
-                    // TODO: Handle error
+                for m in messages{
+                    self.try_serialize_send(client, &m).await;
                 }
             }
         }
@@ -283,11 +292,11 @@ impl Client {
                                             Err(err) => {
                                                 let msg = Message {
                                                     seq: 0,
-                                                    data: MessageData::Error{
+                                                    data: Error{
                                                         kind: "InvalidMessage".to_string(),
                                                         info: format!("{:?}", err),
                                                         details: String::new(),
-                                                    }
+                                                    }.into()
                                                 };
                                                 if let Err(err) = self.websocket.send(WsMessage::Text(serde_json::to_string(&msg).expect("Serializing the message should never fail"))).await {
                                                     self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseErr(err)}).await.unwrap();

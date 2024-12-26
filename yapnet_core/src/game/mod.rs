@@ -12,6 +12,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+use crate::{prelude::Message, protocol::message::MessageData};
+
 pub mod chat;
 pub mod history;
 pub mod user;
@@ -19,17 +21,17 @@ pub mod user;
 #[derive(Debug)]
 pub enum MessageResult {
     /// Send message to everyone
-    Broadcast(String),
+    Broadcast(Message),
     /// Send message to everyone but the client who's message we are reacting too
-    BroadcastExclusive(String),
+    BroadcastExclusive(Message),
     /// Error, only send the message to the one client
-    Error(String),
+    Error(Message),
     /// Only send the message to the one client who sent this message
-    Return(String),
+    Return(Message),
     /// Composite message for things like joining, leaving and recap
     Many(Vec<MessageResult>),
     /// Bulk messages, like Recaps
-    Bulk(Vec<String>),
+    Bulk(Vec<Message>),
     /// Empty
     None,
 }

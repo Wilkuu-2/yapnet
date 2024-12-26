@@ -14,11 +14,22 @@
 
 pub mod message;
 use serde::{Deserialize, Serialize};
+pub mod body;
+mod private;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChatSetup {
     pub name: String,
     pub perm: Perms,
+}
+
+pub trait MessageDataV2 {
+    /// Returns the msg_type field
+    fn msg_type(&self) -> &'static str;
+    fn is_global(&self) -> bool;
+    fn subject(&self) -> Option<UserId>;
+    fn object(&self) -> Option<UserId>;
+    fn chat(&self) -> Option<ChatId>;
 }
 
 /// Permissions for chats
@@ -109,4 +120,40 @@ impl Perms {
         }
         rw
     }
+}
+
+type UserId = String;
+type ChatId = String;
+
+#[derive(Debug, Clone ,Serialize, Deserialize)]
+pub struct MessageV2 {
+    #[serde(default)]
+    pub seq: u64,
+    #[serde(flatten)]
+    pub data: body::MessageV2Enum,
+}
+
+use serde::ser::SerializeStruct;
+
+
+#[cfg(test)]
+use crate::protocol::message::{Message, MessageData};
+
+#[test]
+fn test_v2_serialization() {
+    let uname = "test".to_string();
+    let a_struct: Message = MessageData::Hello {
+        username: uname.clone(),
+    }
+    .into();
+    let a = serde_json::to_string(&a_struct).unwrap();
+    let b_inner = body::TestMessage { username: uname };
+    let b_enum: MessageV2Enum = b_inner.into();
+    let b_struct = MessageV2 {
+        seq: 0,
+        data: b_enum,
+    };
+    let b = serde_json::to_string(&b_struct).unwrap();
+
+    assert_eq!(a, b);
 }

@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 /// Metadata wrapping the message body
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Message {
+pub(crate) struct Message {
     /// Sequence number
     #[serde(default)]
     pub seq: u64,
@@ -31,12 +31,12 @@ pub struct Message {
 /// The message body
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "msg_type", content = "data")]
-pub enum MessageData {
+pub(crate) enum MessageData {
     /// Server: Game setup
     #[serde(rename = "stup")]
     Setup { chats: Vec<ChatSetup> },
     // Player movement protocol
-    /// Client: First time join
+    /// Client: First time join;
     #[serde(rename = "helo")]
     Hello { username: String },
     /// Client: Reconnect

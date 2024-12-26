@@ -12,10 +12,10 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use crate::protocol::message::*;
+use crate::protocol::{body::MessageV2Enum, MessageV2};
 
 pub struct History {
-    inner: Vec<Message>,
+    inner: Vec<MessageV2>,
     seq: u64,
 }
 
@@ -35,28 +35,28 @@ impl History {
     }
 
     /// This should be only done when sending messages.
-    pub fn state_message(&mut self, m: MessageData) -> &Message {
+    pub fn state_message(&mut self, m: MessageV2Enum) -> &MessageV2 {
         let s = self.seq;
         self.seq += 1;
-        let message = Message { seq: s, data: m };
+        let message = MessageV2 { seq: s, data: m };
         self.inner.push(message);
         self.inner.last().expect("Just pushed")
     }
 
-    pub fn push_and_serialize(&mut self, m: MessageData) -> String {
+    pub fn push_and_serialize(&mut self, m: MessageV2Enum) -> String {
         let s = self.seq;
         self.seq += 1;
-        let message = Message { seq: s, data: m };
+        let message = MessageV2 { seq: s, data: m };
         let d = serde_json::to_string(&message).unwrap();
         // TODO: Handle error
         self.inner.push(message);
         d
     }
 
-    pub fn push(&mut self, m: MessageData) {
+    pub fn push(&mut self, m: MessageV2Enum) {
         let s = self.seq;
         self.seq += 1;
-        let message = Message { seq: s, data: m };
+        let message = MessageV2 { seq: s, data: m };
         self.inner.push(message);
     }
 
@@ -76,7 +76,7 @@ pub struct HistoryIter<'a> {
 }
 
 impl<'a> Iterator for HistoryIter<'a> {
-    type Item = &'a Message;
+    type Item = &'a MessageV2;
     fn next(&mut self) -> Option<Self::Item> {
         let o = self.data.inner.get(self.index);
         self.index += 1;
