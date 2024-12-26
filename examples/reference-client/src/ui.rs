@@ -12,14 +12,12 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
-use std::{fmt::format, u16};
 
 use ratatui::{
     buffer::Buffer,
     layout::{self, Alignment, Constraint, Layout, Rect},
     style::{Color, Style},
-    symbols::{self, border::Set as BSet, scrollbar},
-    text::Text,
+    symbols::{self, border::Set as BSet},
     widgets::{
         Block, BorderType, Borders, List, Scrollbar, ScrollbarState, StatefulWidget, Widget,
     },
@@ -28,6 +26,7 @@ use ratatui::{
 
 use crate::app::{App, UIMessage};
 
+#[allow(dead_code)]
 enum InputMode {
     Normal,
     Editing,
@@ -133,13 +132,11 @@ impl<'a, 'b> StatefulWidget for SubList<'a, 'b> {
                     b = unsafe { h.unchecked_sub(head) };
                     break;
                 }
-            } else {
-                if h >= t {
-                    // Found the topmost thing
-                    t = h - t;
-                    nb = a.0;
-                    top_found = true;
-                }
+            } else if h >= t {
+                // Found the topmost thing
+                t = h - t;
+                nb = a.0;
+                top_found = true;
             }
         }
         if !top_found {

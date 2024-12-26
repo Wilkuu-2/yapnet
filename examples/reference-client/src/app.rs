@@ -14,18 +14,15 @@
 
 use std::{
     error,
-    fmt::{self, format, Display},
-    iter::repeat_n,
+    fmt::{Display},
     str::FromStr,
 };
 
-use ratatui::text::Text;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tui_textarea::TextArea;
-use tui_widgets::scrollview::ScrollViewState;
 use uuid::Uuid;
 use yapnet_client::{Client, ClientAction};
-use yapnet_core::prelude::{ChatSent, MessageData};
+use yapnet_core::prelude::ChatSent;
 
 use crate::ui::SubListState;
 
@@ -90,8 +87,7 @@ impl<'a> App<'a> {
 
     pub fn get_username(&'a self) -> Option<String> {
         self.client
-            .as_ref()
-            .map_or(None, |x| x.state.username.as_ref().map(|z| z.clone()))
+            .as_ref().and_then(|x| x.state.username.clone())
     }
 
     pub async fn enter_message(&mut self) {
@@ -101,7 +97,7 @@ impl<'a> App<'a> {
 
         if let Ok(cmd) = command {
             let username_string = self.get_username();
-            let username = username_string.as_ref().map(|f| f.as_str());
+            let username = username_string.as_deref();
             self.submit_uimessage(UIMessage::cmd(username, content.as_str()));
             self.handle_command(cmd).await;
         } else {
@@ -253,7 +249,7 @@ impl<'a> App<'a> {
                     .unwrap()
                     .state
                     .messages
-                    .get(e.clone())
+                    .get(*e)
                     .unwrap()
                     .data
                     .clone()
@@ -402,7 +398,7 @@ impl FromStr for AppCommand {
                     .map_or(Self::Error("Missing argument: uuid".to_string()), |u| {
                         Uuid::try_parse(u).map_or_else(
                             |e| Self::Error(format!("Invalid UUID: {:?}", e)),
-                            |uuid| Self::Login(uuid),
+                            Self::Login,
                         )
                     }))
             }

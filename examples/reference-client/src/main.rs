@@ -12,10 +12,8 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use core::error;
 use std::io;
 
-use app::UIMessage;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use tokio::sync::broadcast;
 

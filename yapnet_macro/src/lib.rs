@@ -6,7 +6,6 @@ use syn::{
     parse::{End, Parse, ParseStream},
     parse_macro_input,
     spanned::Spanned,
-    token::Token,
     DeriveInput, Expr, GenericParam, Ident, Item, MetaNameValue, Path, Token, Type,
 };
 
@@ -178,12 +177,11 @@ impl Parse for ProtocolBody {
 
                 let generics: Vec<GenericParam> =
                     st.generics.params.iter().cloned().collect();
-                let typ;
-                if !generics.is_empty() {
-                    typ = Type::Verbatim(quote! {#ident<#(#generics),*>})
+                let typ = if !generics.is_empty() {
+                    Type::Verbatim(quote! {#ident<#(#generics),*>})
                 } else {
-                    typ = Type::Verbatim(quote! {#ident})
-                }
+                    Type::Verbatim(quote! {#ident})
+                };
                 items.push(ProtocolItem(ident, typ, mt));
             }
         }
