@@ -183,7 +183,7 @@ impl State {
         }
     }
     pub fn new_user(&mut self, username: &String) -> Result<MessageResult, MessageResult> {
-        if self.users.get(username).is_some() {
+        if self.users.contains_key(username) {
             return Err(error_result(
                 "UsernameTaken",
                 format!("Username: {} already taken", username),

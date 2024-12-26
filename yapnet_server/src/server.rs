@@ -53,9 +53,9 @@ pub struct CloseConnection {
 
 /// Reason for a client to close
 pub enum CloseConnectionReason {
-    ClientCloseFrame(CloseFrame<'static>),
-    ClientCloseErr(axum::Error),
-    ClientCloseEmpty,
+    Frame(CloseFrame<'static>),
+    Err(axum::Error),
+    Empty,
 }
 
 /// Axum-side communication with the server.
@@ -305,7 +305,7 @@ impl Client {
                                                     }.into()
                                                 };
                                                 if let Err(err) = self.websocket.send(WsMessage::Text(serde_json::to_string(&msg).expect("Serializing the message should never fail"))).await {
-                                                    self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseErr(err)}).await.unwrap();
+                                                    self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::Err(err)}).await.unwrap();
                                                 };
                                             }
                                         }
@@ -314,10 +314,10 @@ impl Client {
                                     WsMessage::Close(close_opt) => {
                                         println!("Client sent a close frame, returning.");
                                         if let Some(close) = close_opt {
-                                            self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseFrame(close)}).await.unwrap();
+                                            self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::Frame(close)}).await.unwrap();
                                             return
                                         } else {
-                                            self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseEmpty}).await.unwrap();
+                                            self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::Empty}).await.unwrap();
                                             return
                                         }
                                     },
@@ -325,20 +325,20 @@ impl Client {
                                 }
                             }
                             Err(err) => {
-                                self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseErr(err)}).await.unwrap();
+                                self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::Err(err)}).await.unwrap();
                                 return
                             }
                         }
                     } else {
                         println!("There are no client packages left, returning.");
-                        self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseEmpty}).await.unwrap();
+                        self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::Empty}).await.unwrap();
                         return
                     }
                 }
                     send = self.from_server.recv() => {
                     if let Some(m) = send {
                         if let Err(err) = self.websocket.send(WsMessage::Text(m)).await {
-                            self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::ClientCloseErr(err)}).await.unwrap();
+                            self.remove_clients.send(CloseConnection{id: self.cid, reason: CloseConnectionReason::Err(err)}).await.unwrap();
                         };
                     } else {
                         println!("Server closed the sender, closing connection!");

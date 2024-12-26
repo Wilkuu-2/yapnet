@@ -139,8 +139,9 @@ impl LuaState {
                 let call_res = self.lua.scope(|scope| {
                     let frame_s = scope.create_userdata(frame.clone())?;
                     args.push_front(frame_s.into_lua(&self.lua)?);
-                    oc.call(args)?;
+                    oc.call(args)?; 
                     Ok(())
+
                 });
                 if let Err(err) = call_res {
                     eprintln!("Error in callback '{}'\n{}", callback_name, err)
