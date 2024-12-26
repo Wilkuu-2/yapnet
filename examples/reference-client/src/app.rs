@@ -112,10 +112,13 @@ impl<'a> App<'a> {
     pub async fn send_chat(&mut self, content: String) {
         if let Some(client) = &mut self.client {
             let res = client
-                .send_message(yapnet_core::prelude::ChatSend {
-                    chat_target: self.current_chat.clone(),
-                    chat_content: content,
-                }.into())
+                .send_message(
+                    yapnet_core::prelude::ChatSend {
+                        chat_target: self.current_chat.clone(),
+                        chat_content: content,
+                    }
+                    .into(),
+                )
                 .await;
 
             match res {
@@ -252,10 +255,16 @@ impl<'a> App<'a> {
                     .messages
                     .get(e.clone())
                     .unwrap()
-                    .data.clone().try_into(); 
+                    .data
+                    .clone()
+                    .try_into();
 
-                if let Ok(ChatSent{chat_sender,chat_target,chat_content}) = opt{
-
+                if let Ok(ChatSent {
+                    chat_sender,
+                    chat_target,
+                    chat_content,
+                }) = opt
+                {
                     let a = UIMessage {
                         player: chat_sender.to_string(),
                         location: chat_target.to_string(),

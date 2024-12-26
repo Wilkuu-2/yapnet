@@ -3,7 +3,11 @@ use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
-    parse::{End, Parse, ParseStream}, parse_macro_input, spanned::Spanned, token::Token, DeriveInput, Expr, GenericParam, Ident, Item, LitStr, Meta, MetaNameValue, Path, Token, Type
+    parse::{End, Parse, ParseStream},
+    parse_macro_input,
+    spanned::Spanned,
+    token::Token,
+    DeriveInput, Expr, GenericParam, Ident, Item, LitStr, Meta, MetaNameValue, Path, Token, Type,
 };
 
 #[derive(FromDeriveInput, Default)]
@@ -16,48 +20,58 @@ struct Opts {
 fn get_lit_string(e: Expr) -> syn::Result<String> {
     match e {
         Expr::Lit(l) => match l.lit {
-          syn::Lit::Str(s) => Ok(s.value()), 
-          _ => { Err(syn::Error::new_spanned(l, "This should be a string literal"))},
+            syn::Lit::Str(s) => Ok(s.value()),
+            _ => Err(syn::Error::new_spanned(
+                l,
+                "This should be a string literal",
+            )),
         },
-        _ => Err(syn::Error::new_spanned(e, "This should be a string literal"))
-    } 
-
-} 
+        _ => Err(syn::Error::new_spanned(
+            e,
+            "This should be a string literal",
+        )),
+    }
+}
 fn get_lit_bool(e: Expr) -> syn::Result<bool> {
     match e {
         Expr::Lit(l) => match l.lit {
-          syn::Lit::Bool(s) => Ok(s.value), 
-          _ => { Err(syn::Error::new_spanned(l, "This should be a boolean literal"))},
+            syn::Lit::Bool(s) => Ok(s.value),
+            _ => Err(syn::Error::new_spanned(
+                l,
+                "This should be a boolean literal",
+            )),
         },
-        _ => Err(syn::Error::new_spanned(e, "This should be a boolean literal"))
-    } 
-} 
+        _ => Err(syn::Error::new_spanned(
+            e,
+            "This should be a boolean literal",
+        )),
+    }
+}
 
-
-fn handle_missing_arg<T>(opt: Option<T>, span: Span, name: &str)-> syn::Result<T> {
+fn handle_missing_arg<T>(opt: Option<T>, span: Span, name: &str) -> syn::Result<T> {
     match opt {
         Some(x) => Ok(x),
-        None => Err(syn::Error::new(span, format!("Missing value: {}", name)))
+        None => Err(syn::Error::new(span, format!("Missing value: {}", name))),
     }
 }
 
 impl Parse for Opts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut msg_type = None; 
-        let mut global = None; 
+        let mut msg_type = None;
+        let mut global = None;
 
         loop {
             if input.peek(End) {
                 break;
             }
-            
+
             if input.peek(Token![,]) {
                 let _: Token![,] = input.parse()?;
                 continue;
             }
 
             if input.peek(syn::Ident) {
-                let mv: MetaNameValue = input.parse()?; 
+                let mv: MetaNameValue = input.parse()?;
 
                 match mv.path.segments.last().unwrap().ident.to_string().as_str() {
                     "msg_type" => msg_type = Some(get_lit_string(mv.value)?),
@@ -65,16 +79,13 @@ impl Parse for Opts {
                     _ => return Err(syn::Error::new_spanned(mv, "Foreign name_value")),
                 }
             }
-
         }
-        Ok(Self{
-            msg_type: handle_missing_arg(msg_type, input.span(), stringify!(msg_type))?, 
-            global: handle_missing_arg(global, input.span(), stringify!(global))?, 
+        Ok(Self {
+            msg_type: handle_missing_arg(msg_type, input.span(), stringify!(msg_type))?,
+            global: handle_missing_arg(global, input.span(), stringify!(global))?,
         })
     }
-
 }
-
 
 #[proc_macro_derive(MessageDataV2, attributes(msg_data))]
 pub fn derive_message_data(_item: TokenStream) -> TokenStream {
@@ -82,11 +93,10 @@ pub fn derive_message_data(_item: TokenStream) -> TokenStream {
     //  TODO: Better diagnostics
     let opts = Opts::from_derive_input(&input).unwrap();
     let DeriveInput { ident, data: _, .. } = input;
-    println!("Deriving MessageDataV2 for {}", ident.to_string()); 
+    println!("Deriving MessageDataV2 for {}", ident.to_string());
 
     let msg_type = opts.msg_type;
     let global = opts.global;
-
 
     let output = quote! {
         impl crate::protocol::MessageDataV2 for #ident {
@@ -108,9 +118,9 @@ impl ToTokens for ProtocolItem {
         let mut ide = self.0.clone();
         let typ = self.1.clone();
         let msg_type = self.2.clone();
-        
+
         ide = format_ident!("Body{}", ide);
-        let out = quote! { 
+        let out = quote! {
             #[serde(rename = #msg_type)]
             #ide(#typ)
         };
@@ -155,19 +165,17 @@ impl Parse for ProtocolBody {
             match &item {
                 Item::Struct(st) => {
                     let ident = st.ident.clone();
-                    println!("Parsing struct {}", ident.to_string()); 
+                    println!("Parsing struct {}", ident.to_string());
 
-                    let mut msg_type = None; 
+                    let mut msg_type = None;
                     for attr in st.attrs.iter() {
-                        if attr.meta.path() == &Path::from_string("msg_data")?
-                        { 
+                        if attr.meta.path() == &Path::from_string("msg_data")? {
                             let msg_data: Opts = attr.parse_args()?;
-                            msg_type = Some(msg_data.msg_type); 
+                            msg_type = Some(msg_data.msg_type);
                             break;
                         }
                     }
-                    let mt = handle_missing_arg(msg_type, st.span(), "msg_type attribute")?; 
-                    
+                    let mt = handle_missing_arg(msg_type, st.span(), "msg_type attribute")?;
 
                     let generics: Vec<GenericParam> =
                         st.generics.params.iter().map(|p| p.clone()).collect();

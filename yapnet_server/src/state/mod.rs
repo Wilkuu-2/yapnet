@@ -97,7 +97,7 @@ impl State {
     }
 
     fn handle_chat(&mut self, sender: &String, m: Message) -> MessageResult {
-        if let MessageData::BodyChatSend( ChatSend {
+        if let MessageData::BodyChatSend(ChatSend {
             chat_target,
             chat_content,
         }) = m.data
@@ -117,12 +117,17 @@ impl State {
                     }
 
                     MessageResult::Broadcast(
-                        self.history.state_message(ChatSent {
-                            chat_sender: sender.clone(),
-                            chat_target,
-                            chat_content,
-                        }.into()).clone())
-                    
+                        self.history
+                            .state_message(
+                                ChatSent {
+                                    chat_sender: sender.clone(),
+                                    chat_target,
+                                    chat_content,
+                                }
+                                .into(),
+                            )
+                            .clone(),
+                    )
                 } else {
                     error_result(
                         "ChatPermDeny",
@@ -194,9 +199,16 @@ impl State {
     pub fn player_leave(&mut self, userc: &String) -> MessageResult {
         if let Some(user) = self.users.get_mut(userc) {
             user.online = false;
-            MessageResult::Broadcast(self.history.state_message(PlayerLeft {
-                username: userc.clone(),
-            }.into()).clone())
+            MessageResult::Broadcast(
+                self.history
+                    .state_message(
+                        PlayerLeft {
+                            username: userc.clone(),
+                        }
+                        .into(),
+                    )
+                    .clone(),
+            )
         } else {
             MessageResult::None
         }
@@ -252,7 +264,8 @@ impl State {
                                 .iter()
                                 .map(|m| serde_json::to_value(m).unwrap())
                                 .collect(),
-                        }.into(),
+                        }
+                        .into(),
                     });
 
                     start_cursor += mbuf.len();
@@ -271,7 +284,8 @@ impl State {
                         .iter()
                         .map(|m| serde_json::to_value(m).unwrap())
                         .collect(),
-                }.into(),
+                }
+                .into(),
             });
         }
 
@@ -298,11 +312,18 @@ impl State {
         let welcome = Welcome {
             username: username.clone(),
             token: uuid,
-        }.into_message();
+        }
+        .into_message();
 
-        let player_joined = self.history.state_message(PlayerJoined {
-            username: username.clone(),
-        }.into()).clone();
+        let player_joined = self
+            .history
+            .state_message(
+                PlayerJoined {
+                    username: username.clone(),
+                }
+                .into(),
+            )
+            .clone();
         MessageResult::Many(vec![
             MessageResult::Return(welcome),
             MessageResult::BroadcastExclusive(player_joined),
@@ -316,7 +337,8 @@ fn error_message(kind: &'static str, info: String, details: Option<String>) -> M
         kind: kind.to_string(),
         info,
         details: details.unwrap_or("{}".to_string()),
-    }.into_message()
+    }
+    .into_message()
 }
 
 pub fn error_result(kind: &'static str, info: String, details: Option<String>) -> MessageResult {
@@ -325,6 +347,7 @@ pub fn error_result(kind: &'static str, info: String, details: Option<String>) -
             kind: kind.to_string(),
             info,
             details: details.unwrap_or("{}".to_string()),
-        }.into_message(),
+        }
+        .into_message(),
     )
 }

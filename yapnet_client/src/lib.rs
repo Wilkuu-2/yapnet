@@ -23,10 +23,7 @@ use serde_json::{from_str, to_string};
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message as WSMessage, MaybeTlsStream, WebSocketStream,
 };
-use yapnet_core::{
-    game::chat::MessageRef,
-    prelude::*,
-};
+use yapnet_core::{game::chat::MessageRef, prelude::*};
 
 macro_rules! unpack_msg {
     {$e:expr, $t:pat => $b:block }=> {
@@ -158,9 +155,7 @@ impl Client {
     }
 
     pub async fn send_login(&mut self, token: uuid::Uuid) {
-        self.send_message_pre(Back { token }.into())
-            .await
-            .unwrap();
+        self.send_message_pre(Back { token }.into()).await.unwrap();
     }
 
     pub async fn recieve_and_handle(&mut self) -> ClientResult {
@@ -181,20 +176,23 @@ impl Client {
     fn handle_message(&mut self, msg: Message) -> ClientResult {
         let ret: ClientResultOuter = match msg.data {
             MessageData::BodyError(ref err) => ClientResultOuter(
-                Ok(ClientAction::Error(format!("{} => {}", &err.kind, &err.details))),
+                Ok(ClientAction::Error(format!(
+                    "{} => {}",
+                    &err.kind, &err.details
+                ))),
                 false,
             ),
-            MessageData::BodyPlayerJoined ( ref x ) => self.handle_player_joined(&x),
-            MessageData::BodyPlayerLeft ( ref x ) => self.handle_player_left(&x),
-            MessageData::BodyChatSent ( ref x ) => self.handle_chat(&x),
-            MessageData::BodyWelcome ( ref x ) => self.handle_welcome(&x),
-            MessageData::BodySetup ( ref x ) => self.handle_setup(&x),
-            MessageData::BodyRecapHead ( ref x ) => self.start_recap(&x),
-            MessageData::BodyRecapTail ( ref x ) => self.progress_recap(&x),
-            d @ MessageData::BodyChatSend ( .. )
-            | d @ MessageData::BodyHello ( .. )
-            | d @ MessageData::BodyBack ( .. )
-            | d @ MessageData::BodyEcho( .. ) => panic!("Message for server sent here: {:?}", d),
+            MessageData::BodyPlayerJoined(ref x) => self.handle_player_joined(&x),
+            MessageData::BodyPlayerLeft(ref x) => self.handle_player_left(&x),
+            MessageData::BodyChatSent(ref x) => self.handle_chat(&x),
+            MessageData::BodyWelcome(ref x) => self.handle_welcome(&x),
+            MessageData::BodySetup(ref x) => self.handle_setup(&x),
+            MessageData::BodyRecapHead(ref x) => self.start_recap(&x),
+            MessageData::BodyRecapTail(ref x) => self.progress_recap(&x),
+            d @ MessageData::BodyChatSend(..)
+            | d @ MessageData::BodyHello(..)
+            | d @ MessageData::BodyBack(..)
+            | d @ MessageData::BodyEcho(..) => panic!("Message for server sent here: {:?}", d),
             MessageData::BodyTestMessage(_) => todo!(),
         };
 
@@ -220,7 +218,7 @@ impl Client {
         }
         ClientResultOuter(Ok(ClientAction::PlayerJoined(uname)), true)
     }
-    
+
     fn handle_player_left(&mut self, msg: &PlayerLeft) -> ClientResultOuter {
         assert!(self.state.registered);
         let uname = msg.username.clone();
@@ -237,28 +235,38 @@ impl Client {
         }
         ClientResultOuter(Ok(ClientAction::PlayerJoined(uname)), true)
     }
-    fn handle_welcome(&mut self, Welcome {username, token}: &Welcome ) -> ClientResultOuter {
+    fn handle_welcome(&mut self, Welcome { username, token }: &Welcome) -> ClientResultOuter {
         self.state.username = Some(username.clone());
         self.state.token = Some(token.clone());
         self.state.registered = true;
         ClientResultOuter(Ok(ClientAction::Welcome), false)
     }
-    fn handle_chat(&mut self, ChatSent{chat_target, ..}: &ChatSent) -> ClientResultOuter {
+    fn handle_chat(&mut self, ChatSent { chat_target, .. }: &ChatSent) -> ClientResultOuter {
         let ind = self.state.get_pending_index();
-        self.lobby.chats.get_mut(chat_target).unwrap().messages.push(ind);
+        self.lobby
+            .chats
+            .get_mut(chat_target)
+            .unwrap()
+            .messages
+            .push(ind);
         ClientResultOuter(Ok(ClientAction::Chat(ind)), true)
     }
 
-
     fn handle_setup(&mut self, Setup { chats }: &Setup) -> ClientResultOuter {
         for chat in chats {
-            self.lobby.chats.insert(chat.name.clone(), Chat::new(chat.perm.clone()));
+            self.lobby
+                .chats
+                .insert(chat.name.clone(), Chat::new(chat.perm.clone()));
         }
         ClientResultOuter(Ok(ClientAction::None), true)
     }
 
     fn start_recap(&mut self, RecapHead { count, chunk_sz }: &RecapHead) -> ClientResultOuter {
-        self.recap_info = Some(RecapInfo { chunk_sz: *chunk_sz, end_chunk: *count , current_seq: 0 });
+        self.recap_info = Some(RecapInfo {
+            chunk_sz: *chunk_sz,
+            end_chunk: *count,
+            current_seq: 0,
+        });
         ClientResultOuter(Ok(ClientAction::None), false)
     }
 
@@ -266,7 +274,9 @@ impl Client {
         let mut actions: Vec<ClientResult> = vec![];
         let (_, mut current) = match &self.recap_info {
             Some(recap) => (recap.end_chunk, recap.current_seq),
-            None => { return ClientResultOuter(Err(Error::NoRecapHead) ,false);} ,
+            None => {
+                return ClientResultOuter(Err(Error::NoRecapHead), false);
+            }
         };
 
         assert_eq!(*start, current);
@@ -282,7 +292,6 @@ impl Client {
 
             actions.push(self.handle_message(msg))
         }
-
 
         self.recap_info.as_mut().unwrap().current_seq = current;
 

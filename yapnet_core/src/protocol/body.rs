@@ -113,9 +113,9 @@ impl Into<String> for MessageV2Enum {
 
 pub trait IntoMessage {
     fn into_message(self) -> MessageV2;
-    fn into_numbered_message(self, seq: u64) -> MessageV2 
+    fn into_numbered_message(self, seq: u64) -> MessageV2
     where
-        Self: Sized
+        Self: Sized,
     {
         let mut msg = self.into_message();
         msg.seq = seq;
@@ -125,9 +125,7 @@ pub trait IntoMessage {
 
 impl<T: Into<MessageV2Enum>> IntoMessage for T {
     fn into_message(self) -> MessageV2 {
-        let enem: MessageV2Enum = self.into(); 
+        let enem: MessageV2Enum = self.into();
         enem.into()
-        
     }
-
 }

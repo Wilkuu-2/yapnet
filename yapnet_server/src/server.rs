@@ -16,8 +16,6 @@ use crate::lua::state_init;
 use crate::state::{error_result, State};
 use async_recursion::async_recursion;
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
-use yapnet_core::lua::yapi::init_lua_from_argv;
-use yapnet_core::prelude::Message;
 use std::collections::HashMap;
 use tokio::{
     select,
@@ -25,6 +23,8 @@ use tokio::{
     task::JoinHandle,
 };
 use yapnet_core::game::MessageResult;
+use yapnet_core::lua::yapi::init_lua_from_argv;
+use yapnet_core::prelude::Message;
 use yapnet_core::prelude::*;
 
 /// Server stored handle to the client task
@@ -157,7 +157,7 @@ impl Server {
     pub fn handle_message(&mut self, m: Message) -> MessageResult {
         let cid = m.seq;
         match m.data {
-            MessageData::BodyHello( Hello { username }) => match self.state.new_user(&username) {
+            MessageData::BodyHello(Hello { username }) => match self.state.new_user(&username) {
                 Ok(o) => {
                     self.users_connections
                         .insert(cid as usize, username.clone());
@@ -165,7 +165,7 @@ impl Server {
                 }
                 Err(o) => o,
             },
-            MessageData::BodyBack( Back { token }) => match self.state.reauth_user(token) {
+            MessageData::BodyBack(Back { token }) => match self.state.reauth_user(token) {
                 Ok((username, o)) => {
                     self.users_connections
                         .insert(cid as usize, username.clone());
@@ -190,22 +190,28 @@ impl Server {
 
     #[async_recursion(?Send)]
     async fn try_serialize_send(&self, client: &ClientConnection, m: &Message) {
-            let x = serde_json::to_string(&m);
-            if let Ok(msg) = x {
-                match client.to_client.send(msg).await {
-                    Ok(()) => (),
-                    Err(err) => eprintln!("[Send error] {:?}", err),
-                    // TODO: Handle this error by disconnecting the player 
-                }
-            } else if let Err(err) = x{
-                eprintln!("[Serialization Error] {:?}", err);
-                self.send_result(client.id, MessageResult::Error( Error {
-                    kind: "ESER".to_owned() ,
-                    info: format!("Message serialization failed at seq: {}", m.seq),
-                    details: "".to_string(),
-                }.into_message())).await;
-            }  
-        
+        let x = serde_json::to_string(&m);
+        if let Ok(msg) = x {
+            match client.to_client.send(msg).await {
+                Ok(()) => (),
+                Err(err) => eprintln!("[Send error] {:?}", err),
+                // TODO: Handle this error by disconnecting the player
+            }
+        } else if let Err(err) = x {
+            eprintln!("[Serialization Error] {:?}", err);
+            self.send_result(
+                client.id,
+                MessageResult::Error(
+                    Error {
+                        kind: "ESER".to_owned(),
+                        info: format!("Message serialization failed at seq: {}", m.seq),
+                        details: "".to_string(),
+                    }
+                    .into_message(),
+                ),
+            )
+            .await;
+        }
     }
 
     async fn send_result(&self, cid: usize, m: MessageResult) {
@@ -234,14 +240,14 @@ impl Server {
             // Recursively send all the results
             MessageResult::Many(ms) => {
                 for m in ms {
-                    Box::pin(self.send_result(cid,m)).await
+                    Box::pin(self.send_result(cid, m)).await
                 }
             }
 
             MessageResult::None => (),
             MessageResult::Bulk(messages) => {
                 let client = self.clients.get(&cid).unwrap();
-                for m in messages{
+                for m in messages {
                     self.try_serialize_send(client, &m).await;
                 }
             }

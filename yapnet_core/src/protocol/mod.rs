@@ -15,7 +15,6 @@
 pub mod message;
 use serde::{Deserialize, Serialize};
 pub mod body;
-mod private;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChatSetup {
@@ -125,16 +124,13 @@ impl Perms {
 type UserId = String;
 type ChatId = String;
 
-#[derive(Debug, Clone ,Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageV2 {
     #[serde(default)]
     pub seq: u64,
     #[serde(flatten)]
     pub data: body::MessageV2Enum,
 }
-
-use serde::ser::SerializeStruct;
-
 
 #[cfg(test)]
 use crate::protocol::message::{Message, MessageData};
