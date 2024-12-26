@@ -51,7 +51,7 @@ impl State {
     }
 
     pub fn handle_message(&mut self, username: &String, m: Message) -> MessageResult {
-        return match m.data {
+        match m.data {
             MessageData::BodyBack { .. } | MessageData::BodyHello { .. } => {
                 unreachable!("Back and Hello should be already handled")
             }
@@ -71,7 +71,7 @@ impl State {
             MessageData::BodyEcho(_) => todo!("echo"),
             MessageData::BodyTestMessage(_) => unreachable!(),
             MessageData::BodyError { .. } => todo!("error"),
-        };
+        }
     }
 
     fn lua_call<'lua, A>(
@@ -183,7 +183,7 @@ impl State {
         }
     }
     pub fn new_user(&mut self, username: &String) -> Result<MessageResult, MessageResult> {
-        if let Some(_) = self.users.get(username) {
+        if self.users.get(username).is_some() {
             return Err(error_result(
                 "UsernameTaken",
                 format!("Username: {} already taken", username),
@@ -274,7 +274,7 @@ impl State {
             }
         }
         // Append at the end
-        if mbuf.len() > 0 {
+        if !mbuf.is_empty() {
             chunks += 1;
             out.push(Message {
                 seq: chunks as u64,
@@ -300,9 +300,7 @@ impl State {
         MessageResult::Many(vec![
             head,
             MessageResult::Bulk(
-                out.iter()
-                    .map(|m| m.clone()) // See if you can somehow avoid this clone
-                    .collect(),
+                out.to_vec(),
             ),
         ])
     }

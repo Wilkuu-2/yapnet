@@ -1,4 +1,4 @@
-use darling::{FromDeriveInput, FromMeta, FromMetaItem};
+use darling::{FromDeriveInput, FromMeta};
 use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::{format_ident, quote, ToTokens};
@@ -7,7 +7,7 @@ use syn::{
     parse_macro_input,
     spanned::Spanned,
     token::Token,
-    DeriveInput, Expr, GenericParam, Ident, Item, LitStr, Meta, MetaNameValue, Path, Token, Type,
+    DeriveInput, Expr, GenericParam, Ident, Item, MetaNameValue, Path, Token, Type,
 };
 
 #[derive(FromDeriveInput, Default)]
@@ -93,7 +93,7 @@ pub fn derive_message_data(_item: TokenStream) -> TokenStream {
     //  TODO: Better diagnostics
     let opts = Opts::from_derive_input(&input).unwrap();
     let DeriveInput { ident, data: _, .. } = input;
-    println!("Deriving MessageDataV2 for {}", ident.to_string());
+    println!("Deriving MessageDataV2 for {}", ident);
 
     let msg_type = opts.msg_type;
     let global = opts.global;
@@ -162,36 +162,33 @@ impl Parse for ProtocolBody {
                 break;
             }
             let item: Item = input.parse()?;
-            match &item {
-                Item::Struct(st) => {
-                    let ident = st.ident.clone();
-                    println!("Parsing struct {}", ident.to_string());
+            if let Item::Struct(st) = &item {
+                let ident = st.ident.clone();
+                println!("Parsing struct {}", ident);
 
-                    let mut msg_type = None;
-                    for attr in st.attrs.iter() {
-                        if attr.meta.path() == &Path::from_string("msg_data")? {
-                            let msg_data: Opts = attr.parse_args()?;
-                            msg_type = Some(msg_data.msg_type);
-                            break;
-                        }
+                let mut msg_type = None;
+                for attr in st.attrs.iter() {
+                    if attr.meta.path() == &Path::from_string("msg_data")? {
+                        let msg_data: Opts = attr.parse_args()?;
+                        msg_type = Some(msg_data.msg_type);
+                        break;
                     }
-                    let mt = handle_missing_arg(msg_type, st.span(), "msg_type attribute")?;
-
-                    let generics: Vec<GenericParam> =
-                        st.generics.params.iter().map(|p| p.clone()).collect();
-                    let typ;
-                    if generics.len() > 0 {
-                        typ = Type::Verbatim(quote! {#ident<#(#generics),*>})
-                    } else {
-                        typ = Type::Verbatim(quote! {#ident})
-                    }
-                    items.push(ProtocolItem(ident, typ, mt));
                 }
-                _ => {}
+                let mt = handle_missing_arg(msg_type, st.span(), "msg_type attribute")?;
+
+                let generics: Vec<GenericParam> =
+                    st.generics.params.iter().cloned().collect();
+                let typ;
+                if !generics.is_empty() {
+                    typ = Type::Verbatim(quote! {#ident<#(#generics),*>})
+                } else {
+                    typ = Type::Verbatim(quote! {#ident})
+                }
+                items.push(ProtocolItem(ident, typ, mt));
             }
         }
 
-        return Ok(Self { items });
+        Ok(Self { items })
     }
 }
 

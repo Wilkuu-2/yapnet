@@ -107,7 +107,7 @@ impl Server {
             highest_id: 0,
         };
 
-        return (sv, sh);
+        (sv, sh)
     }
 
     /// The task that manages websocket connection
@@ -127,7 +127,7 @@ impl Server {
                     self.clients.remove(&close.id);
                     if let Some(uname)  = self.users_connections.remove(&close.id) {
                         let res = self.state.player_leave(&uname);
-                        self.send_result(close.id as usize, res).await;
+                        self.send_result(close.id, res).await;
                     }
                     self.display_clients();
                     self.state.display_state();
@@ -231,7 +231,7 @@ impl Server {
                 }
             }
             MessageResult::Broadcast(m) => {
-                for (_, client) in &self.clients {
+                for client in self.clients.values() {
                     self.try_serialize_send(client, &m).await;
                     // TODO: Handle error and see what we can do about the clone
                 }
@@ -346,7 +346,7 @@ impl Client {
                             Ok(()) => (),
                             Err(err) => {
                                 if err.to_string() != "Trying to work with closed connection"{
-                                    println!("Websocket error! {}", err.to_string());
+                                    println!("Websocket error! {}", err);
                                 }
                             }
                         };

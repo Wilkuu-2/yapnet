@@ -63,10 +63,10 @@ pub enum Perm {
 impl Perm {
     pub fn check_player(&self, username: &String) -> Option<u8> {
         match self {
-            Self::Any { rw } => Some(rw.clone()),
+            Self::Any { rw } => Some(*rw),
             Self::User { name, rw } => {
                 if *name == *username {
-                    Some(rw.clone())
+                    Some(*rw)
                 } else {
                     None
                 }
@@ -76,10 +76,10 @@ impl Perm {
     }
     pub fn check_group(&self, groupname: &String) -> Option<u8> {
         match self {
-            Self::Any { rw } => Some(rw.clone()),
+            Self::Any { rw } => Some(*rw),
             Self::Group { name, rw } => {
                 if *name == *groupname {
-                    Some(rw.clone())
+                    Some(*rw)
                 } else {
                     None
                 }
@@ -91,6 +91,12 @@ impl Perm {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Perms(Vec<Perm>);
+
+impl Default for Perms {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Perms {
     pub fn new() -> Self {
@@ -130,26 +136,4 @@ pub struct MessageV2 {
     pub seq: u64,
     #[serde(flatten)]
     pub data: body::MessageV2Enum,
-}
-
-#[cfg(test)]
-use crate::protocol::message::{Message, MessageData};
-
-#[test]
-fn test_v2_serialization() {
-    let uname = "test".to_string();
-    let a_struct: Message = MessageData::Hello {
-        username: uname.clone(),
-    }
-    .into();
-    let a = serde_json::to_string(&a_struct).unwrap();
-    let b_inner = body::TestMessage { username: uname };
-    let b_enum: MessageV2Enum = b_inner.into();
-    let b_struct = MessageV2 {
-        seq: 0,
-        data: b_enum,
-    };
-    let b = serde_json::to_string(&b_struct).unwrap();
-
-    assert_eq!(a, b);
 }

@@ -26,7 +26,7 @@ pub fn init_lua_from_argv() -> Lua {
     let mut args = std::env::args();
     let _ = args.next();
     let file_name = args.next().expect("No file argument given");
-    init_lua(file_name.try_into().unwrap())
+    init_lua(file_name.into())
 }
 
 pub fn init_lua<'table>(path: PathBuf) -> Lua {

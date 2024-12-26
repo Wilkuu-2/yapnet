@@ -26,6 +26,6 @@ pub struct User {
 
 impl User {
     pub fn new(uuid: Uuid) -> Self {
-        return Self { uuid, online: true };
+        Self { uuid, online: true }
     }
 }

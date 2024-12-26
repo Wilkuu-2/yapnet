@@ -19,6 +19,12 @@ pub struct History {
     seq: u64,
 }
 
+impl Default for History {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl History {
     pub fn new() -> Self {
         History {
@@ -27,7 +33,7 @@ impl History {
         }
     }
 
-    pub fn iter<'a>(&'a self) -> HistoryIter<'a> {
+    pub fn iter(&self) -> HistoryIter<'_> {
         HistoryIter {
             index: 0,
             data: self,
@@ -80,6 +86,6 @@ impl<'a> Iterator for HistoryIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let o = self.data.inner.get(self.index);
         self.index += 1;
-        return o;
+        o
     }
 }

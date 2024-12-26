@@ -58,7 +58,7 @@ impl GameState {
     }
 
     fn get_pending_index(&self) -> usize {
-        return self.messages.len();
+        self.messages.len()
     }
 }
 
@@ -117,7 +117,7 @@ pub enum ClientAction {
 
 impl Client {
     pub async fn connect(url: String) -> Result<Self, Error> {
-        let (stream, _response) = connect_async(url).await.map_err(|e| Error::Websocket(e))?;
+        let (stream, _response) = connect_async(url).await.map_err(Error::Websocket)?;
         // TODO: Validate connection more
         //
         let (writer, reader) = stream.split();
@@ -138,7 +138,7 @@ impl Client {
                 to_string(&wrapped).expect("Serialization should never fail here"),
             ))
             .await
-            .map_err(|e| Error::Websocket(e))
+            .map_err(Error::Websocket)
     }
 
     pub async fn send_register(&mut self, username: String) {
@@ -182,13 +182,13 @@ impl Client {
                 ))),
                 false,
             ),
-            MessageData::BodyPlayerJoined(ref x) => self.handle_player_joined(&x),
-            MessageData::BodyPlayerLeft(ref x) => self.handle_player_left(&x),
-            MessageData::BodyChatSent(ref x) => self.handle_chat(&x),
-            MessageData::BodyWelcome(ref x) => self.handle_welcome(&x),
-            MessageData::BodySetup(ref x) => self.handle_setup(&x),
-            MessageData::BodyRecapHead(ref x) => self.start_recap(&x),
-            MessageData::BodyRecapTail(ref x) => self.progress_recap(&x),
+            MessageData::BodyPlayerJoined(ref x) => self.handle_player_joined(x),
+            MessageData::BodyPlayerLeft(ref x) => self.handle_player_left(x),
+            MessageData::BodyChatSent(ref x) => self.handle_chat(x),
+            MessageData::BodyWelcome(ref x) => self.handle_welcome(x),
+            MessageData::BodySetup(ref x) => self.handle_setup(x),
+            MessageData::BodyRecapHead(ref x) => self.start_recap(x),
+            MessageData::BodyRecapTail(ref x) => self.progress_recap(x),
             d @ MessageData::BodyChatSend(..)
             | d @ MessageData::BodyHello(..)
             | d @ MessageData::BodyBack(..)
@@ -237,7 +237,7 @@ impl Client {
     }
     fn handle_welcome(&mut self, Welcome { username, token }: &Welcome) -> ClientResultOuter {
         self.state.username = Some(username.clone());
-        self.state.token = Some(token.clone());
+        self.state.token = Some(*token);
         self.state.registered = true;
         ClientResultOuter(Ok(ClientAction::Welcome), false)
     }

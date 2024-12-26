@@ -33,10 +33,10 @@ impl Chat {
     }
     pub fn can_write(&self, _: &User) -> bool {
         // Todo: Check permissions
-        return true;
+        true
     }
     pub fn can_read(&self, _: &User) -> bool {
         // Todo: Check permissions
-        return true;
+        true
     }
 }

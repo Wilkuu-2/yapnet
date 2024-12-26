@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::{ChatSetup, MessageDataV2, MessageV2};
+use super::{ChatSetup, MessageV2};
 yapnet_macro::protocol_body! {
     #[derive(yapnet_macro::MessageDataV2, Serialize, Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type="helo")]
@@ -49,7 +49,7 @@ yapnet_macro::protocol_body! {
     pub struct PlayerLeft { pub username: String }
 
     // Chat
-    //// Client: Say this in this chat
+/// Client: Say this in this chat
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "chas")]
     pub struct ChatSend {
@@ -89,9 +89,9 @@ yapnet_macro::protocol_body! {
     pub struct Echo(serde_json::Value);
 }
 
-impl Into<String> for &MessageV2 {
-    fn into(self) -> String {
-        serde_json::to_string(self).expect("Right now we do not handle errors in serialization")
+impl From<&MessageV2> for String {
+    fn from(val: &MessageV2) -> Self {
+        serde_json::to_string(val).expect("Right now we do not handle errors in serialization")
     }
 }
 
@@ -104,10 +104,10 @@ impl From<MessageV2Enum> for MessageV2 {
     }
 }
 
-impl Into<String> for MessageV2Enum {
-    fn into(self) -> String {
-        let msg: &MessageV2 = &self.into();
-        return msg.into();
+impl From<MessageV2Enum> for String {
+    fn from(val: MessageV2Enum) -> Self {
+        let msg: &MessageV2 = &val.into();
+        msg.into()
     }
 }
 

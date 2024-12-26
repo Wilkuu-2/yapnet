@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use crate::{prelude::Message, protocol::message::MessageData};
+use crate::prelude::Message;
 
 pub mod chat;
 pub mod history;
