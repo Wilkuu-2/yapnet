@@ -1,6 +1,6 @@
-use darling::{FromDeriveInput, FromMeta};
+use darling::{FromAttributes, FromDeriveInput, FromMeta};
 use proc_macro::{self, TokenStream};
-use proc_macro2::Span;
+use proc_macro2::{Span};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::{End, Parse, ParseStream},
@@ -8,13 +8,6 @@ use syn::{
     spanned::Spanned,
     DeriveInput, Expr, GenericParam, Ident, Item, MetaNameValue, Path, Token, Type,
 };
-
-#[derive(FromDeriveInput, Default)]
-#[darling(default, attributes(msg_data), forward_attrs(allow, doc, cfg))]
-struct Opts {
-    msg_type: String,
-    global: bool,
-}
 
 fn get_lit_string(e: Expr) -> syn::Result<String> {
     match e {
@@ -53,8 +46,30 @@ fn handle_missing_arg<T>(opt: Option<T>, span: Span, name: &str) -> syn::Result<
         None => Err(syn::Error::new(span, format!("Missing value: {}", name))),
     }
 }
+#[derive(FromDeriveInput, Default)]
+#[darling(default, attributes(msg_data), forward_attrs(allow, doc, cfg))]
+struct OuterOpts {
+    msg_type: String,
+    global: bool,
+}
 
-impl Parse for Opts {
+#[derive(FromMeta, Default)]
+#[darling(default)]
+struct InnerOpts {
+    subject: bool,
+    object: bool, 
+    chat: bool,
+}
+
+#[derive(Default)]
+struct InnerIdent {
+    subject: Option<Ident>, 
+    object: Option<Ident>, 
+    chat: Option<Ident>,
+}
+
+
+impl Parse for OuterOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut msg_type = None;
         let mut global = None;
@@ -86,25 +101,65 @@ impl Parse for Opts {
     }
 }
 
-#[proc_macro_derive(MessageDataV2, attributes(msg_data))]
+fn return_field_opt(ident: Option<Ident>) -> proc_macro2::TokenStream { 
+    match ident {
+        Some(field) => {quote! {Some(self.#field.clone())}}
+        None    => {quote! {None}}
+    }
+
+}
+
+#[proc_macro_derive(MessageDataV2, attributes(msg_data, msg_info))]
 pub fn derive_message_data(_item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(_item);
-    //  TODO: Better diagnostics
-    let opts = Opts::from_derive_input(&input).unwrap();
-    let DeriveInput { ident, data: _, .. } = input;
+    let opts = match OuterOpts::from_derive_input(&input) {
+        Ok(o) => o, 
+        Err(err) =>{return err.write_errors().into();},
+    };
+
+    let DeriveInput { ident, data, .. } = input;    
+    let mut idents = InnerIdent::default();  
+
+    match data {
+        syn::Data::Struct(st) => {
+            for x in st.fields {
+                if let Some(id) = x.ident {
+                    for attr in x.attrs {
+                        if attr.path().segments.last().unwrap().ident == "msg_info" {
+                            let opts = match InnerOpts::from_meta(&attr.meta) {
+                                Ok(o) => o, 
+                                Err(err) =>{return err.write_errors().into();},
+                            };
+
+                            if opts.chat { idents.chat = Some(id.clone()) } 
+                            if opts.object { idents.object = Some(id.clone())}
+                            if opts.subject { idents.subject = Some(id.clone())}
+                        }
+                    }
+                }
+            }
+        }
+        _ => return TokenStream::from(syn::Error::new_spanned(ident, "The derive only works on struct").to_compile_error())
+
+    }
+
+    
     println!("Deriving MessageDataV2 for {}", ident);
 
     let msg_type = opts.msg_type;
-    let global = opts.global;
+    let global  = opts.global;
+    let subject = return_field_opt(idents.subject);
+    let object  = return_field_opt(idents.object);
+    let chat    = return_field_opt(idents.chat);
 
     let output = quote! {
         impl crate::protocol::MessageDataV2 for #ident {
             fn msg_type(&self) -> &'static str { #msg_type }
             fn is_global(&self) -> bool { #global }
 
-            fn subject(&self) -> Option<crate::protocol:: UserId> { None }
-            fn object(&self)  -> Option<crate::protocol::UserId> { None }
-            fn chat(&self)    -> Option<crate::protocol::ChatId> { None }
+            fn subject(&self) -> Option<crate::protocol::UserId> { #subject }
+            fn object(&self)  -> Option<crate::protocol::UserId> { #object }
+            fn chat(&self)    -> Option<crate::protocol::ChatId> { #chat }
         }
     };
     output.into()
@@ -168,7 +223,7 @@ impl Parse for ProtocolBody {
                 let mut msg_type = None;
                 for attr in st.attrs.iter() {
                     if attr.meta.path() == &Path::from_string("msg_data")? {
-                        let msg_data: Opts = attr.parse_args()?;
+                        let msg_data: OuterOpts = attr.parse_args()?;
                         msg_type = Some(msg_data.msg_type);
                         break;
                     }

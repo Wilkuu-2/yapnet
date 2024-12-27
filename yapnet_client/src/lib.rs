@@ -193,7 +193,6 @@ impl Client {
             | d @ MessageData::BodyHello(..)
             | d @ MessageData::BodyBack(..)
             | d @ MessageData::BodyEcho(..) => panic!("Message for server sent here: {:?}", d),
-            MessageData::BodyTestMessage(_) => todo!(),
         };
 
         if ret.1 {

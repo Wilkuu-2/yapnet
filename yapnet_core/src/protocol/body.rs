@@ -17,11 +17,6 @@ use uuid::Uuid;
 
 use super::{ChatSetup, MessageV2};
 yapnet_macro::protocol_body! {
-    #[derive(yapnet_macro::MessageDataV2, Serialize, Deserialize, Debug, Clone)]
-    #[msg_data(global=true, msg_type="helo")]
-    pub struct TestMessage {
-        pub username: String,
-    }
     /// Server: Game setup
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type="setp")]
@@ -30,23 +25,38 @@ yapnet_macro::protocol_body! {
     /// Client: First time join
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(msg_type = "helo", global = true)]
-    pub struct Hello { pub username: String }
+    pub struct Hello { 
+        #[msg_info(subject)]
+        pub username: String
+    }
     /// Client: Reconnect
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "back")]
-    pub struct Back { pub token: Uuid }
+    pub struct Back { 
+        pub token: Uuid 
+    }
     /// Server: Accept player
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "welc")]
-    pub struct Welcome { pub username: String, pub token: Uuid }
+    pub struct Welcome { 
+        #[msg_info(object)]
+        pub username: String, 
+        pub token: Uuid 
+    }
     /// Server: Someone joined
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "plrj")]
-    pub struct PlayerJoined { pub username: String }
+    pub struct PlayerJoined {
+        #[msg_info(subject)]
+        pub username: String
+    }
     /// Server: Someone left
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "plrl")]
-    pub struct PlayerLeft { pub username: String }
+    pub struct PlayerLeft { 
+        #[msg_info(subject)]
+        pub username: String
+    }
 
     // Chat
 /// Client: Say this in this chat
@@ -60,7 +70,9 @@ yapnet_macro::protocol_body! {
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "chat")]
     pub struct ChatSent {
+        #[msg_info(subject)]
         pub chat_sender: String,
+        #[msg_info(chat)]
         pub chat_target: String,
         pub chat_content: String,
     }
@@ -76,11 +88,15 @@ yapnet_macro::protocol_body! {
     /// Server: This is how much happened before you joined
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "rech")]
-    pub struct RecapHead { pub count: usize, pub chunk_sz: usize }
+    pub struct RecapHead { 
+        pub count: usize, 
+        pub chunk_sz: usize }
     /// Server: This is what happened before you joined
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "recx")]
-    pub struct RecapTail { pub start: usize, pub msgs: Vec<Value> }
+    pub struct RecapTail { 
+        pub start: usize, 
+        pub msgs: Vec<Value> }
 
     // Misc
     /// Server/Client: Echo

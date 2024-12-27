@@ -69,7 +69,6 @@ impl State {
                 MessageResult::None
             }
             MessageData::BodyEcho(_) => todo!("echo"),
-            MessageData::BodyTestMessage(_) => unreachable!(),
             MessageData::BodyError { .. } => todo!("error"),
         }
     }
