@@ -257,6 +257,7 @@ pub fn protocol_body(module: TokenStream) -> TokenStream {
 
     quote! {
         #[derive(Debug,Clone,serde::Serialize, serde::Deserialize)]
+        #[non_exhaustive]
         #[serde(tag= "msg_type", content="data")]
         pub enum MessageV2Enum{
             #(#items),*

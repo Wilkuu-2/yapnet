@@ -65,11 +65,15 @@ impl State {
             | MessageData::BodyRecapHead { .. }
             | MessageData::BodyRecapTail { .. }
             | MessageData::BodySetup { .. } => {
-                println!("Server side packet sent by client!");
+                eprintln!("Server side packet sent by client!");
                 MessageResult::None
             }
             MessageData::BodyEcho(_) => todo!("echo"),
             MessageData::BodyError { .. } => todo!("error"),
+            x => {
+                eprintln!("Unknown protocol message found {} ", x.to_inner().msg_type());
+                MessageResult::None
+            },
         }
     }
 
