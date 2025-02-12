@@ -12,11 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-use std::{
-    error,
-    fmt::{Display},
-    str::FromStr,
-};
+use std::{error, fmt::Display, str::FromStr};
 
 use tokio::sync::broadcast::{Receiver, Sender};
 use tui_textarea::TextArea;
@@ -86,8 +82,7 @@ impl<'a> App<'a> {
     }
 
     pub fn get_username(&'a self) -> Option<String> {
-        self.client
-            .as_ref().and_then(|x| x.state.username.clone())
+        self.client.as_ref().and_then(|x| x.state.username.clone())
     }
 
     pub async fn enter_message(&mut self) {

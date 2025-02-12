@@ -30,7 +30,6 @@ mod lua;
 mod server;
 mod state;
 
-
 /// Axum state (Arc)
 pub type AppState = std::sync::Arc<AppStateT>;
 /// Inner type for the axum state

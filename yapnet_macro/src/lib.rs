@@ -1,6 +1,6 @@
-use darling::{FromAttributes, FromDeriveInput, FromMeta};
+use darling::{FromDeriveInput, FromMeta};
 use proc_macro::{self, TokenStream};
-use proc_macro2::{Span};
+use proc_macro2::Span;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::{End, Parse, ParseStream},
@@ -57,17 +57,16 @@ struct OuterOpts {
 #[darling(default)]
 struct InnerOpts {
     subject: bool,
-    object: bool, 
+    object: bool,
     chat: bool,
 }
 
 #[derive(Default)]
 struct InnerIdent {
-    subject: Option<Ident>, 
-    object: Option<Ident>, 
+    subject: Option<Ident>,
+    object: Option<Ident>,
     chat: Option<Ident>,
 }
-
 
 impl Parse for OuterOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -101,24 +100,29 @@ impl Parse for OuterOpts {
     }
 }
 
-fn return_field_opt(ident: Option<Ident>) -> proc_macro2::TokenStream { 
+fn return_field_opt(ident: Option<Ident>) -> proc_macro2::TokenStream {
     match ident {
-        Some(field) => {quote! {Some(self.#field.clone())}}
-        None    => {quote! {None}}
+        Some(field) => {
+            quote! {Some(self.#field.clone())}
+        }
+        None => {
+            quote! {None}
+        }
     }
-
 }
 
 #[proc_macro_derive(MessageDataV2, attributes(msg_data, msg_info))]
 pub fn derive_message_data(_item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(_item);
     let opts = match OuterOpts::from_derive_input(&input) {
-        Ok(o) => o, 
-        Err(err) =>{return err.write_errors().into();},
+        Ok(o) => o,
+        Err(err) => {
+            return err.write_errors().into();
+        }
     };
 
-    let DeriveInput { ident, data, .. } = input;    
-    let mut idents = InnerIdent::default();  
+    let DeriveInput { ident, data, .. } = input;
+    let mut idents = InnerIdent::default();
 
     match data {
         syn::Data::Struct(st) => {
@@ -127,30 +131,41 @@ pub fn derive_message_data(_item: TokenStream) -> TokenStream {
                     for attr in x.attrs {
                         if attr.path().segments.last().unwrap().ident == "msg_info" {
                             let opts = match InnerOpts::from_meta(&attr.meta) {
-                                Ok(o) => o, 
-                                Err(err) =>{return err.write_errors().into();},
+                                Ok(o) => o,
+                                Err(err) => {
+                                    return err.write_errors().into();
+                                }
                             };
 
-                            if opts.chat { idents.chat = Some(id.clone()) } 
-                            if opts.object { idents.object = Some(id.clone())}
-                            if opts.subject { idents.subject = Some(id.clone())}
+                            if opts.chat {
+                                idents.chat = Some(id.clone())
+                            }
+                            if opts.object {
+                                idents.object = Some(id.clone())
+                            }
+                            if opts.subject {
+                                idents.subject = Some(id.clone())
+                            }
                         }
                     }
                 }
             }
         }
-        _ => return TokenStream::from(syn::Error::new_spanned(ident, "The derive only works on struct").to_compile_error())
-
+        _ => {
+            return TokenStream::from(
+                syn::Error::new_spanned(ident, "The derive only works on struct")
+                    .to_compile_error(),
+            )
+        }
     }
 
-    
     println!("Deriving MessageDataV2 for {}", ident);
 
     let msg_type = opts.msg_type;
-    let global  = opts.global;
+    let global = opts.global;
     let subject = return_field_opt(idents.subject);
-    let object  = return_field_opt(idents.object);
-    let chat    = return_field_opt(idents.chat);
+    let object = return_field_opt(idents.object);
+    let chat = return_field_opt(idents.chat);
 
     let output = quote! {
         impl crate::protocol::MessageDataV2 for #ident {
@@ -230,8 +245,7 @@ impl Parse for ProtocolBody {
                 }
                 let mt = handle_missing_arg(msg_type, st.span(), "msg_type attribute")?;
 
-                let generics: Vec<GenericParam> =
-                    st.generics.params.iter().cloned().collect();
+                let generics: Vec<GenericParam> = st.generics.params.iter().cloned().collect();
                 let typ = if !generics.is_empty() {
                     Type::Verbatim(quote! {#ident<#(#generics),*>})
                 } else {

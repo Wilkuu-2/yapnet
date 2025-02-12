@@ -25,23 +25,23 @@ yapnet_macro::protocol_body! {
     /// Client: First time join
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(msg_type = "helo", global = true)]
-    pub struct Hello { 
+    pub struct Hello {
         #[msg_info(subject)]
         pub username: String
     }
     /// Client: Reconnect
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "back")]
-    pub struct Back { 
-        pub token: Uuid 
+    pub struct Back {
+        pub token: Uuid
     }
     /// Server: Accept player
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "welc")]
-    pub struct Welcome { 
+    pub struct Welcome {
         #[msg_info(object)]
-        pub username: String, 
-        pub token: Uuid 
+        pub username: String,
+        pub token: Uuid
     }
     /// Server: Someone joined
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
@@ -53,7 +53,7 @@ yapnet_macro::protocol_body! {
     /// Server: Someone left
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "plrl")]
-    pub struct PlayerLeft { 
+    pub struct PlayerLeft {
         #[msg_info(subject)]
         pub username: String
     }
@@ -88,14 +88,14 @@ yapnet_macro::protocol_body! {
     /// Server: This is how much happened before you joined
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "rech")]
-    pub struct RecapHead { 
-        pub count: usize, 
+    pub struct RecapHead {
+        pub count: usize,
         pub chunk_sz: usize }
     /// Server: This is what happened before you joined
     #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
     #[msg_data(global=true, msg_type = "recx")]
-    pub struct RecapTail { 
-        pub start: usize, 
+    pub struct RecapTail {
+        pub start: usize,
         pub msgs: Vec<Value> }
 
     // Misc

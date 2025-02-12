@@ -195,9 +195,8 @@ impl Client {
             | d @ MessageData::BodyEcho(..) => panic!("Message for server sent here: {:?}", d),
             x => {
                 tracing::error!("Unknown message [{}] handled.", x.to_inner().msg_type());
-                return Ok(ClientAction::Error("Unknown message".to_string()))
+                return Ok(ClientAction::Error("Unknown message".to_string()));
             }
-            
         };
 
         if ret.1 {

@@ -71,9 +71,12 @@ impl State {
             MessageData::BodyEcho(_) => todo!("echo"),
             MessageData::BodyError { .. } => todo!("error"),
             x => {
-                eprintln!("Unknown protocol message found {} ", x.to_inner().msg_type());
+                eprintln!(
+                    "Unknown protocol message found {} ",
+                    x.to_inner().msg_type()
+                );
                 MessageResult::None
-            },
+            }
         }
     }
 
@@ -300,12 +303,7 @@ impl State {
             .into_message(),
         );
 
-        MessageResult::Many(vec![
-            head,
-            MessageResult::Bulk(
-                out.to_vec(),
-            ),
-        ])
+        MessageResult::Many(vec![head, MessageResult::Bulk(out.to_vec())])
     }
 
     fn successful_login(&mut self, username: &String, uuid: Uuid) -> MessageResult {
