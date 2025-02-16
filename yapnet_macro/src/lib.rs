@@ -5,8 +5,7 @@ use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::{End, Parse, ParseStream},
     parse_macro_input,
-    spanned::Spanned,
-    Attribute, DeriveInput, Expr, GenericParam, Ident, Item, ItemStruct, MetaNameValue, Path,
+    spanned::Spanned, DeriveInput, Expr, GenericParam, Ident, Item, MetaNameValue, Path,
     Token, Type,
 };
 
