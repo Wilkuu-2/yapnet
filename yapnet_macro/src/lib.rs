@@ -6,7 +6,8 @@ use syn::{
     parse::{End, Parse, ParseStream},
     parse_macro_input,
     spanned::Spanned,
-    DeriveInput, Expr, GenericParam, Ident, Item, MetaNameValue, Path, Token, Type,
+    Attribute, DeriveInput, Expr, GenericParam, Ident, Item, ItemStruct, MetaNameValue, Path,
+    Token, Type,
 };
 
 fn get_lit_string(e: Expr) -> syn::Result<String> {
@@ -159,7 +160,7 @@ pub fn derive_message_data(_item: TokenStream) -> TokenStream {
         }
     }
 
-    println!("Deriving MessageDataV2 for {}", ident);
+    // println!("Deriving MessageDataV2 for {}", ident);
 
     let msg_type = opts.msg_type;
     let global = opts.global;
@@ -180,7 +181,7 @@ pub fn derive_message_data(_item: TokenStream) -> TokenStream {
     output.into()
 }
 
-struct ProtocolItem(Ident, Type, String);
+struct ProtocolItem(Ident, Type, String, proc_macro2::TokenStream);
 
 impl ToTokens for ProtocolItem {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -205,19 +206,25 @@ impl ProtocolBody {
     fn get_idents(&self) -> Vec<Ident> {
         self.items
             .iter()
-            .map(|ProtocolItem(i, _, _)| i.clone())
+            .map(|ProtocolItem(i, _, _, _)| i.clone())
             .collect()
     }
     fn get_types(&self) -> Vec<Type> {
         self.items
             .iter()
-            .map(|ProtocolItem(_, t, _)| t.clone())
+            .map(|ProtocolItem(_, t, _, _)| t.clone())
             .collect()
     }
     fn get_enum_idents(&self) -> Vec<Ident> {
         self.items
             .iter()
-            .map(|ProtocolItem(i, _, _)| format_ident!("Body{}", i.clone()))
+            .map(|ProtocolItem(i, _, _, _)| format_ident!("Body{}", i.clone()))
+            .collect()
+    }
+    fn get_structs(&self) -> Vec<proc_macro2::TokenStream> {
+        self.items
+            .iter()
+            .map(|ProtocolItem(_, _, _, b)| b.clone())
             .collect()
     }
 }
@@ -233,7 +240,7 @@ impl Parse for ProtocolBody {
             let item: Item = input.parse()?;
             if let Item::Struct(st) = &item {
                 let ident = st.ident.clone();
-                println!("Parsing struct {}", ident);
+                // println!("Parsing struct {}", ident);
 
                 let mut msg_type = None;
                 for attr in st.attrs.iter() {
@@ -251,7 +258,12 @@ impl Parse for ProtocolBody {
                 } else {
                     Type::Verbatim(quote! {#ident})
                 };
-                items.push(ProtocolItem(ident, typ, mt));
+                let st2 = quote! {
+                    #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+                    #st
+                };
+
+                items.push(ProtocolItem(ident, typ, mt, st2));
             }
         }
 
@@ -268,6 +280,7 @@ pub fn protocol_body(module: TokenStream) -> TokenStream {
     let _idents = input.get_idents();
     let variants = input.get_enum_idents();
     let typs = input.get_types();
+    let bodies = input.get_structs();
 
     quote! {
         #[derive(Debug,Clone,serde::Serialize, serde::Deserialize)]
@@ -306,7 +319,7 @@ pub fn protocol_body(module: TokenStream) -> TokenStream {
             }
         })*
 
-        #m1
+        #(#bodies)*
 
     }
     .into()

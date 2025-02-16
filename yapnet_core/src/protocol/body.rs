@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 // Copyright 2024 Jakub Stachurski
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,32 +12,32 @@
 //  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
+use yapnet_macro::MessageDataV2;
 
-use super::{ChatSetup, MessageV2};
+use super::{ChatId, ChatSetup, MessageV2, RoleId, UserId};
 yapnet_macro::protocol_body! {
     /// Server: Game setup
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type="setp")]
     pub struct Setup { pub chats: Vec<ChatSetup>, }
     // Player movement protocol
     /// Client: First time join
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(msg_type = "helo", global = true)]
     pub struct Hello {
         #[msg_info(subject)]
         pub username: String
     }
     /// Client: Reconnect
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "back")]
     pub struct Back {
         pub token: Uuid
     }
     /// Server: Accept player
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "welc")]
     pub struct Welcome {
         #[msg_info(object)]
@@ -44,14 +45,14 @@ yapnet_macro::protocol_body! {
         pub token: Uuid
     }
     /// Server: Someone joined
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "plrj")]
     pub struct PlayerJoined {
         #[msg_info(subject)]
         pub username: String
     }
     /// Server: Someone left
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "plrl")]
     pub struct PlayerLeft {
         #[msg_info(subject)]
@@ -59,15 +60,15 @@ yapnet_macro::protocol_body! {
     }
 
     // Chat
-/// Client: Say this in this chat
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    /// Client: Say this in this chat
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "chas")]
     pub struct ChatSend {
         pub chat_target: String,
         pub chat_content: String,
     }
     /// Server: This client said this in this chat
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "chat")]
     pub struct ChatSent {
         #[msg_info(subject)]
@@ -76,8 +77,92 @@ yapnet_macro::protocol_body! {
         pub chat_target: String,
         pub chat_content: String,
     }
+
+
+    /// Server: This player has this role
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "revr")]
+    pub struct RoleReveal {
+        user: UserId,
+        role: RoleId,
+    }
+
+    /// Server: This player has this role
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "revk")]
+    pub struct KillReveal {
+        user: UserId,
+        role: RoleId,
+    }
+
+    /// Player actions
+    /// Server: This are the actions you can do.
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "aavl")]
+    pub struct AvailableActions {
+        actions: Vec<String>,
+    }
+
+
+    /// Client: I do the following action with the following arguments
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "asub")]
+    pub struct SubmitAction {
+        action_id: String,
+        args: Vec<String>,
+    }
+
+    /// Server: A vote has started in this room with the following theme and end time.
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "vstt")]
+    pub struct VoteStart {
+        #[msg_info(chat)]
+        chat_id: ChatId,
+        subject: String,
+        end_time: DateTime<Utc>,
+    }
+
+    /// Client: I vote on this person in this chat
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "vsub")]
+    pub struct SubmitVote {
+        #[msg_info(object)]
+        player_id: UserId,
+        #[msg_info(chat)]
+        chat_id: ChatId,
+    }
+
+    /// Server: This user votes on this person in this chat
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "vrsb")]
+    pub struct VoteSubmission {
+        #[msg_info(subject)]
+        voter: UserId, // TODO: Make option
+        #[msg_info(object)]
+        target: UserId,
+        #[msg_info(chat)]
+        chat_id: ChatId,
+    }
+
+    /// Server: The vote ended with the following result
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "vres")]
+    pub struct VoteResult {
+        target: UserId,
+        chat_id: ChatId,
+    }
+
+    /// Server: The action is submitted with the following result
+    #[derive(MessageDataV2)]
+    #[msg_data(global=true, msg_type = "ares")]
+    pub struct ActionResult {
+        success: bool,
+        reason: String,
+    }
+
+
     /// Server+Client, this went wrong
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "err")]
     pub struct Error {
         pub kind: String,
@@ -86,13 +171,14 @@ yapnet_macro::protocol_body! {
     }
     /// Sync
     /// Server: This is how much happened before you joined
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "rech")]
     pub struct RecapHead {
         pub count: usize,
         pub chunk_sz: usize }
+
     /// Server: This is what happened before you joined
-    #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "recx")]
     pub struct RecapTail {
         pub start: usize,
@@ -100,7 +186,7 @@ yapnet_macro::protocol_body! {
 
     // Misc
     /// Server/Client: Echo
-        #[derive(yapnet_macro::MessageDataV2, Serialize,Deserialize, Debug, Clone)]
+    #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "echo")]
     pub struct Echo(serde_json::Value);
 }

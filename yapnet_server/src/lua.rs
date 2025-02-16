@@ -136,6 +136,7 @@ impl LuaState {
     ) {
         match self.get_setup_table().get::<_, LuaFunction>(callback_name) {
             Ok(oc) => {
+                eprintln!("callback");
                 let call_res: Result<(), LuaError> = self.lua.scope(|scope| {
                     let frame_s = scope.create_userdata(frame.clone())?;
                     args.push_front(frame_s.into_lua(&self.lua)?);

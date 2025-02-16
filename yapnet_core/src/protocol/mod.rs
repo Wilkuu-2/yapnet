@@ -128,6 +128,7 @@ impl Perms {
 
 type UserId = String;
 type ChatId = String;
+type RoleId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageV2 {
