@@ -164,7 +164,7 @@ yapnet_macro::protocol_body! {
     /// Server+Client, this went wrong
     #[derive(MessageDataV2)]
     #[msg_data(global=true, msg_type = "err")]
-    pub struct Error {
+    pub struct YnError {
         pub kind: String,
         pub info: String,
         pub details: String,
@@ -230,4 +230,19 @@ impl<T: Into<MessageV2Enum>> IntoMessage for T {
         let enem: MessageV2Enum = self.into();
         enem.into()
     }
+}
+
+impl YnError {
+    pub fn new<K,I,D>(kind: K, info:  I, details: D) -> Self 
+    where 
+        K: AsRef<str>,
+        I: AsRef<str>,
+        D: AsRef<str>,
+    {
+        Self {
+            kind: String::from(kind.as_ref()), 
+            info: String::from(info.as_ref()), 
+            details: String::from(details.as_ref()), 
+        }
+    } 
 }

@@ -23,7 +23,7 @@ use serde_json::{from_str, to_string};
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message as WSMessage, MaybeTlsStream, WebSocketStream,
 };
-use yapnet_core::{game::chat::MessageRef, prelude::*};
+use yapnet_core::{models::chat::MessageRef, prelude::*};
 
 macro_rules! unpack_msg {
     {$e:expr, $t:pat => $b:block }=> {
@@ -175,7 +175,7 @@ impl Client {
 
     fn handle_message(&mut self, msg: Message) -> ClientResult {
         let ret: ClientResultOuter = match msg.data {
-            MessageData::BodyError(ref err) => ClientResultOuter(
+            MessageData::BodyYnError(ref err) => ClientResultOuter(
                 Ok(ClientAction::Error(format!(
                     "{} => {}",
                     &err.kind, &err.details

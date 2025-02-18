@@ -12,7 +12,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-pub mod game;
+pub mod models;
+pub mod state;
+pub mod error;
 pub mod lua;
 pub mod prelude;
 pub mod protocol;

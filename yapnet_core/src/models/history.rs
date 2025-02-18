@@ -12,10 +12,14 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
+use std::usize;
+
 use crate::protocol::{body::MessageV2Enum, MessageV2};
 
+#[derive(Debug)]
 pub struct History {
     inner: Vec<MessageV2>,
+    start: u64,
     seq: u64,
 }
 
@@ -29,6 +33,7 @@ impl History {
     pub fn new() -> Self {
         History {
             inner: vec![],
+            start: 0, 
             seq: 0,
         }
     }
@@ -39,6 +44,13 @@ impl History {
             data: self,
         }
     }
+
+    pub fn get_frame(&self) -> Self{
+        let mut out = Self::new();
+        out.seq = self.seq; 
+        out.start = self.seq;
+        out 
+    }  
 
     /// This should be only done when sending messages.
     pub fn state_message(&mut self, m: MessageV2Enum) -> &MessageV2 {
@@ -66,13 +78,43 @@ impl History {
         self.inner.push(message);
     }
 
-    // TODO: Move to server code
-
     pub fn print_state(&self) {
         println!("---- [State] ----");
         for m in self.inner.iter() {
             println!("[{}] {:?}", m.seq, m.data)
         }
+    }
+    pub fn get_message(&self ,seq: u64) -> Option<&MessageV2>{
+        if seq < self.start || seq >= self.seq {
+            return None; 
+        }
+        self.inner.get((seq - self.start) as usize)
+    }
+
+    pub fn remove_message(&mut self, seq: u64) -> bool {
+        if seq < self.start || seq >= self.seq {
+            return false; 
+        }
+        let i = seq - self.start;
+        for x in self.inner.iter_mut().skip(i as usize) {
+            x.seq -= 1; 
+        }
+
+        self.inner.remove(seq as usize);
+        true
+    }
+
+    pub fn merge(&mut self, to_merge: History){
+        assert_eq!(self.seq, to_merge.start); 
+        self.inner.extend(to_merge.inner); 
+        self.seq = to_merge.seq;
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 

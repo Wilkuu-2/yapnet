@@ -12,11 +12,10 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 //
-pub use crate::game::history::History;
-pub use crate::game::{
+pub use crate::models::history::History;
+pub use crate::models::{
     chat::{Chat, Chats},
     user::{User, Users},
-    MessageResult,
 };
 pub use crate::protocol::{
     body::MessageV2Enum as MessageData, body::*, ChatSetup, MessageDataV2 as MessageBody,

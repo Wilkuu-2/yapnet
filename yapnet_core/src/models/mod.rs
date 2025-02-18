@@ -18,20 +18,3 @@ pub mod chat;
 pub mod history;
 pub mod user;
 
-#[derive(Debug)]
-pub enum MessageResult {
-    /// Send message to everyone
-    Broadcast(Message),
-    /// Send message to everyone but the client who's message we are reacting too
-    BroadcastExclusive(Message),
-    /// Error, only send the message to the one client
-    Error(Message),
-    /// Only send the message to the one client who sent this message
-    Return(Message),
-    /// Composite message for things like joining, leaving and recap
-    Many(Vec<MessageResult>),
-    /// Bulk messages, like Recaps
-    Bulk(Vec<Message>),
-    /// Empty
-    None,
-}

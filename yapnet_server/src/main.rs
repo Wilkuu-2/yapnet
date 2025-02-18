@@ -28,7 +28,6 @@ use tower_http::services::ServeDir;
 
 mod lua;
 mod server;
-mod state;
 
 /// Axum state (Arc)
 pub type AppState = std::sync::Arc<AppStateT>;

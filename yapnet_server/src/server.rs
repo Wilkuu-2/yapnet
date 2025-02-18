@@ -12,17 +12,18 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use crate::lua::state_init;
-use crate::state::{error_result, State};
+use yapnet_core::lua::state_init;
 use async_recursion::async_recursion;
 use axum::extract::ws::{CloseFrame, Message as WsMessage, WebSocket};
+use yapnet_core::error::ClientError;
+use yapnet_core::protocol::ChatId;
+use yapnet_core::state::{ResponseView, YapnetResponse};
 use std::collections::HashMap;
 use tokio::{
     select,
     sync::mpsc::{channel, Receiver, Sender},
     task::JoinHandle,
 };
-use yapnet_core::game::MessageResult;
 use yapnet_core::lua::yapi::init_lua_from_argv;
 use yapnet_core::prelude::Message;
 use yapnet_core::prelude::*;
@@ -69,7 +70,7 @@ pub struct ServerHandle {
 
 /// Websocket server task
 pub struct Server {
-    state: State,
+    state: yapnet_core::state::YapnetState,
     pub messages: Receiver<Message>,
     pub add_clients: Receiver<WebSocket>,
     pub remove_clients: Receiver<CloseConnection>,
@@ -126,18 +127,27 @@ impl Server {
                     let close = client_opt.unwrap();
                     self.clients.remove(&close.id);
                     if let Some(uname)  = self.users_connections.remove(&close.id) {
-                        let res = self.state.player_leave(&uname);
-                        self.send_result(close.id, res).await;
+                        // Bypassing the borrow checker, since we know that the reference in res in
+                        // immutable.
+                        let ptr = std::ptr::from_ref(&self);
+                        let res = self.state.player_leave(&uname).unwrap();
+                        unsafe { (*ptr).send_result(close.id, res).await };
                     }
                     self.display_clients();
-                    self.state.display_state();
                 }
                 msg_opt = self.messages.recv() => {
                     let msg = msg_opt.unwrap();
                     let cid = msg.seq;
                     println!("Message recieved!: {:?}", &msg);
+                    // Bypassing the borrow checker, since we know that the reference in res in
+                    // immutable.
+                    let ptr = std::ptr::from_ref(&self);
                     let res = self.handle_message(msg);
-                    self.send_result(cid as usize, res).await;
+                    unsafe { 
+                        let refr: &Server = &(*ptr); 
+                        refr.send_result(cid as usize, res).await;
+                        refr.state.print_messages();
+                    }
                 }
             }
         }
@@ -154,37 +164,42 @@ impl Server {
         }
     }
 
-    pub fn handle_message(&mut self, m: Message) -> MessageResult {
+    pub fn handle_message<'s,'v>(&'s mut self, m: Message) -> ResponseView<'v> 
+        where 's:'v 
+    {
         let cid = m.seq;
         match m.data {
-            MessageData::BodyHello(Hello { username }) => match self.state.new_user(&username) {
-                Ok(o) => {
-                    self.users_connections
-                        .insert(cid as usize, username.clone());
-                    o
+            MessageData::BodyHello(Hello { username }) => {  
+                match self.state.new_user(&username) {
+                    Ok(frame) => {
+                        self.users_connections
+                            .insert(cid as usize, username.clone());
+                        frame
+                    },
+                    Err(e) => {
+                        ResponseView::from_message_return(e)
+                    },
                 }
-                Err(o) => o,
             },
-            MessageData::BodyBack(Back { token }) => match self.state.reauth_user(token) {
-                Ok((username, o)) => {
-                    self.users_connections
-                        .insert(cid as usize, username.clone());
-                    o
+            MessageData::BodyBack(Back { token }) =>
+                match self.state.reauth_user(token) {
+                    Ok((username,frame)) => {
+                        self.users_connections
+                            .insert(cid as usize, username);
+                        frame
+                    },
+                    Err(e) => {
+                        ResponseView::from_message_return(e)
+                    },
                 }
-                Err(o) => o,
-            },
             _ => self.auth_handle_message(m),
         }
     }
-    pub fn auth_handle_message(&mut self, m: Message) -> MessageResult {
+    pub fn auth_handle_message(&mut self, m: Message) -> ResponseView<'_>{
         if let Some(username) = self.users_connections.get(&(m.seq as usize)) {
-            self.state.handle_message(username, m)
+            self.state.handle_message_serveir(username, m)
         } else {
-            error_result(
-                "NotLoggedIn",
-                "You need to be logged in to do this action.".to_string(),
-                None,
-            )
+            ResponseView::from_message_return(ClientError::NoLogin)
         }
     }
 
@@ -198,58 +213,70 @@ impl Server {
                 // TODO: Handle this error by disconnecting the player
             }
         } else if let Err(err) = x {
-            eprintln!("[Serialization Error] {:?}", err);
-            self.send_result(
-                client.id,
-                MessageResult::Error(
-                    Error {
-                        kind: "ESER".to_owned(),
-                        info: format!("Message serialization failed at seq: {}", m.seq),
-                        details: "".to_string(),
-                    }
-                    .into_message(),
-                ),
-            )
-            .await;
+            match client.to_client.send(serde_json::to_string(&(YnError::new("SerializationError","The message you sent was malformed",format!("{{ \"SerdeError\":\"{}\"}}",err)).into_message())).unwrap()).await {
+                Ok(_) => {},
+                Err(e) => {eprintln!("Send error: {}", e)},
+            };
         }
     }
 
-    async fn send_result(&self, cid: usize, m: MessageResult) {
-        match m {
-            MessageResult::Error(m) | MessageResult::Return(m) => {
-                if let Some(client) = self.clients.get(&cid) {
-                    self.try_serialize_send(client, &m).await;
-                }
+    async fn try_serialize_send_all_ex<'a,'s, T: Iterator<Item = (&'a usize, &'a ClientConnection)>>(&'s self, m: &Message,cid_ex: usize ,  iter: T) {
+        for (cid2, client) in iter {
+            if cid_ex == *cid2 {
+                continue;
             }
-            MessageResult::BroadcastExclusive(m) => {
-                for (cid2, client) in &self.clients {
-                    if cid == *cid2 {
-                        continue;
+            self.try_serialize_send(client, m).await;
+            // TODO: Handle error and see what we can do about the clone
+        }
+    }
+    async fn try_serialize_send_all<'a,'s, T: Iterator<Item = (&'a usize, &'a ClientConnection)>>(&'s self, m: &Message, iter: T) {
+        for (_, client) in iter {
+            self.try_serialize_send(client, m).await;
+            // TODO: Handle error and see what we can do about the clone
+        }
+    }
+
+    // TODO: rewrite as iter?
+    fn all_participating_clients<'s,'i>(&'s self, chatid: &ChatId) -> Vec<(&usize,&ClientConnection)> 
+    where 
+      's: 'i
+    {
+           match self.state.chats.get(chatid) {
+                None => vec![],
+                Some(chat) =>  {
+                   self.users_connections.iter().filter_map(|(k,v)| {
+                        match chat.can_read(self.state.users.get(v).expect("users_connections should be a subset of state.users ")) {
+                            true => self.clients.get(k).map(|c| (k, c)),
+                            false => None,
+                        }
+                    }).collect() 
+                } 
+           } 
+    }
+
+    async fn send_result<'a>(&self, cid: usize, rv: ResponseView<'a>) {
+        for (resp,m) in rv.iter() {
+            match resp {
+                YapnetResponse::Return(_) => {
+                    if let Some(client) = self.clients.get(&cid) {
+                        self.try_serialize_send(client, m).await;
                     }
-                    self.try_serialize_send(client, &m).await;
-                    // TODO: Handle error and see what we can do about the clone
                 }
-            }
-            MessageResult::Broadcast(m) => {
-                for client in self.clients.values() {
-                    self.try_serialize_send(client, &m).await;
-                    // TODO: Handle error and see what we can do about the clone
+                YapnetResponse::BroadcastExclusive(_, chat) => {
+                    if chat == "system:all" {
+                        self.try_serialize_send_all_ex(m , cid, self.clients.iter()).await;
+                    } else {
+                        self.try_serialize_send_all_ex(m, cid, self.all_participating_clients(chat).into_iter()).await; 
+                    }
                 }
-            }
-
-            // Recursively send all the results
-            MessageResult::Many(ms) => {
-                for m in ms {
-                    Box::pin(self.send_result(cid, m)).await
+                YapnetResponse::Broadcast(_, chat) => {
+                    if chat == "system:all" {
+                        self.try_serialize_send_all(m ,self.clients.iter()).await;
+                    } else {
+                        self.try_serialize_send_all(m, self.all_participating_clients(chat).into_iter()).await; 
+                    }
                 }
-            }
-
-            MessageResult::None => (),
-            MessageResult::Bulk(messages) => {
-                let client = self.clients.get(&cid).unwrap();
-                for m in messages {
-                    self.try_serialize_send(client, &m).await;
-                }
+                YapnetResponse::None => {} 
             }
         }
     }
@@ -298,7 +325,7 @@ impl Client {
                                             Err(err) => {
                                                 let msg = Message {
                                                     seq: 0,
-                                                    data: Error{
+                                                    data: YnError{
                                                         kind: "InvalidMessage".to_string(),
                                                         info: format!("{:?}", err),
                                                         details: String::new(),

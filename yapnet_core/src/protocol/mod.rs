@@ -21,6 +21,10 @@ pub struct ChatSetup {
     pub perm: Perms,
 }
 
+pub type UserId = String;
+pub type ChatId = String;
+pub type RoleId = String;
+
 pub trait MessageDataV2 {
     /// Returns the msg_type field
     fn msg_type(&self) -> &'static str;
@@ -126,9 +130,6 @@ impl Perms {
     }
 }
 
-type UserId = String;
-type ChatId = String;
-type RoleId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageV2 {
